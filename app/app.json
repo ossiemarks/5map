@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "5map",
+    "slug": "fivemap",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "fivemap",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.voicechatbox.fivemap"
+    },
+    "android": {
+      "package": "com.voicechatbox.fivemap",
+      "adaptiveIcon": {
+        "backgroundColor": "#0a0e17"
+      }
+    }
+  }
+}
