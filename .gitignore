@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+venv/
+.venv/
+env/
+
+# Node / React Native
+node_modules/
+.expo/
+*.tgz
+.env
+.env.local
+
+# ML models
+*.h5
+*.pkl
+*.onnx
+*.pt
+models/trained/
+
+# CSI data (large binary captures)
+data/raw/
+data/captures/
+*.pcap
+*.pcapng
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temp
+tmp/
+temp/
