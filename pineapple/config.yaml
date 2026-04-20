@@ -1,0 +1,42 @@
+sensor:
+  id: "pineapple-mk7-001"
+  type: "rssi"
+
+radios:
+  radio_5ghz:
+    interface: "wlan0"
+    band: "5GHz"
+    channels: [36, 40, 44, 48, 149, 153, 157, 161]
+    mode: "monitor"
+  radio_2ghz:
+    interface: "wlan1"
+    band: "2.4GHz"
+    channels: [1, 6, 11]
+    mode: "monitor"
+
+capture:
+  window_seconds: 1
+  max_observations_per_window: 10000
+  channel_dwell_ms: 200
+  buffer_max_size: 50000
+
+transport:
+  type: "mqtt"
+  mqtt:
+    broker: "iot.voicechatbox.com"
+    port: 8883
+    topic: "5map/rssi/{sensor_id}"
+    qos: 1
+    keepalive: 60
+    tls: true
+    cert_dir: "/etc/5map/certs"
+    ca_cert: "AmazonRootCA1.pem"
+    client_cert: "certificate.pem.crt"
+    private_key: "private.pem.key"
+  queue_max_size: 1000
+
+logging:
+  level: "INFO"
+  file: "/var/log/5map-agent.log"
+  max_bytes: 5242880
+  backup_count: 3
