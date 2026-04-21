@@ -92,6 +92,11 @@ resource "aws_iam_role_policy" "lambda" {
         Effect   = "Allow"
         Action   = ["sagemaker:InvokeEndpoint"]
         Resource = ["arn:aws:sagemaker:*:*:endpoint/${var.prefix}-*"]
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["sqs:SendMessage"]
+        Resource = [aws_sqs_queue.dlq.arn]
       }
     ]
   })
