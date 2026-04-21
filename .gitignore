@@ -48,3 +48,10 @@ logs/
 # Temp
 tmp/
 temp/
+
+# Terraform
+terraform/.terraform/providers/
+terraform/.terraform/modules/
+terraform/.build/
+terraform/tfplan
+terraform/.terraform/terraform.tfstate
