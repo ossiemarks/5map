@@ -520,6 +520,26 @@ a{color:var(--cyan);text-decoration:none}
     }
   }
 
+  // ── Data helpers ── parse DynamoDB response quirks
+  function parseIfString(val) {
+    if (typeof val === 'string') { try { return JSON.parse(val); } catch(e) { return val; } }
+    return val;
+  }
+  function fixDevice(d) {
+    d.risk_score = parseFloat(d.risk_score) || 0;
+    d.rssi_dbm = parseInt(d.rssi_dbm) || -100;
+    d.channel = parseInt(d.channel) || 0;
+    d.mac = d.mac_address || d.mac || '';
+    return d;
+  }
+  function fixMapItem(item) {
+    item.heatmap = parseIfString(item.heatmap);
+    item.walls = parseIfString(item.walls);
+    item.grid_bounds = parseIfString(item.grid_bounds);
+    item.confidence = parseFloat(item.confidence) || 0;
+    return item;
+  }
+
   async function createSession(name) {
     return await apiRequest('POST', '/api/sessions', { name });
   }
@@ -1052,26 +1072,6 @@ a{color:var(--cyan);text-decoration:none}
       wsSend('subscribe', { session_id: sessionId });
     }
 
-    // Helper: parse JSON strings inside DynamoDB responses
-    function parseIfString(val) {
-      if (typeof val === 'string') { try { return JSON.parse(val); } catch(e) { return val; } }
-      return val;
-    }
-    function fixDevice(d) {
-      d.risk_score = parseFloat(d.risk_score) || 0;
-      d.rssi_dbm = parseInt(d.rssi_dbm) || -100;
-      d.channel = parseInt(d.channel) || 0;
-      d.mac = d.mac_address || d.mac || '';
-      return d;
-    }
-    function fixMapItem(item) {
-      item.heatmap = parseIfString(item.heatmap);
-      item.walls = parseIfString(item.walls);
-      item.grid_bounds = parseIfString(item.grid_bounds);
-      item.confidence = parseFloat(item.confidence) || 0;
-      return item;
-    }
-
     // Fetch initial data
     fetchMap(sessionId).then(function(data) {
       if (data) {
@@ -1262,30 +1262,6 @@ a{color:var(--cyan);text-decoration:none}
     }).catch(function(err) {
       console.error('Failed to load data.json:', err);
     });
-  }
-
-  /* original init code - for when API/WebSocket is working
-  function initRemote() {
-    initMapCanvas();
-    connectWebSocket();
-    var hashSession = window.location.hash.replace('#', '');
-    if (hashSession) {
-      setSession(hashSession, 'Session');
-    } else {
-      apiRequest('GET', '/api/sessions').then(function(data) {
-        if (data && data.sessions && data.sessions.length > 0) {
-          var s = data.sessions[data.sessions.length - 1];
-          setSession(s.session_id, s.name || 'Session');
-        } else if (data && data.session_id) {
-          setSession(data.session_id, data.name || 'Session');
-        } else {
-          setSession('e8076d73-ce66-4ed8-85fb-ef715f8844cf', 'First Audit Test');
-        }
-      }).catch(function() {
-        // If sessions endpoint fails, use known session directly
-        setSession('e8076d73-ce66-4ed8-85fb-ef715f8844cf', 'First Audit Test');
-      });
-    }
   }
 
   if (document.readyState === 'loading') {
