@@ -441,7 +441,7 @@ a{color:var(--cyan);text-decoration:none}
   'use strict';
 
   // ── Configuration ──
-  const API_BASE = 'https://dqbhaw5wki.execute-api.eu-west-2.amazonaws.com';
+  const API_BASE = '';  // local server
   const WS_BASE  = 'wss://ep8zonl28l.execute-api.eu-west-2.amazonaws.com/prod';
   const AUTH_TOKEN = 'mvp-token';
   const MAX_EVENTS = 500;
@@ -458,6 +458,7 @@ a{color:var(--cyan);text-decoration:none}
     wsConnected: false,
     sortField: 'rssi_dbm',
     sortAsc: false,
+    pollTimer: null,
   };
 
   // ── DOM refs ──
@@ -1225,10 +1226,66 @@ a{color:var(--cyan);text-decoration:none}
   // ── Init ──
   function init() {
     initMapCanvas();
-    connectWebSocket();
+    setWsStatus(false);
 
-    // Show modal on first load to prompt for session
-    setTimeout(openModal, 400);
+    // Load data directly from static JSON file (no API calls needed)
+    fetch('data.json').then(function(r) { return r.json(); }).then(function(data) {
+      console.log('Loaded data.json:', data);
+
+      // Session
+      state.sessionId = data.session.session_id;
+      state.sessionName = data.session.name;
+      dom.sessionLabel.textContent = data.session.name;
+
+      // Devices
+      state.devices = (data.devices || []).map(fixDevice);
+      renderDevices();
+
+      // Events
+      state.events = (data.events || []).map(function(e) {
+        e.confidence = parseFloat(e.confidence) || 0;
+        e.device_count = parseInt(e.device_count) || 0;
+        return e;
+      });
+      state.events.sort(function(a, b) { return new Date(b.timestamp) - new Date(a.timestamp); });
+      renderTimeline();
+
+      // Map
+      if (data.map) {
+        state.mapData = data.map;
+        renderMap();
+      }
+
+      updateStats();
+      updateTimestamp();
+      console.log('Dashboard loaded:', state.devices.length, 'devices,', state.events.length, 'events');
+    }).catch(function(err) {
+      console.error('Failed to load data.json:', err);
+    });
+  }
+
+  /* original init code - for when API/WebSocket is working
+  function initRemote() {
+    initMapCanvas();
+    connectWebSocket();
+    var hashSession = window.location.hash.replace('#', '');
+    if (hashSession) {
+      setSession(hashSession, 'Session');
+    } else {
+      apiRequest('GET', '/api/sessions').then(function(data) {
+        if (data && data.sessions && data.sessions.length > 0) {
+          var s = data.sessions[data.sessions.length - 1];
+          setSession(s.session_id, s.name || 'Session');
+        } else if (data && data.session_id) {
+          setSession(data.session_id, data.name || 'Session');
+        } else {
+          setSession('e8076d73-ce66-4ed8-85fb-ef715f8844cf', 'First Audit Test');
+        }
+      }).catch(function() {
+        // If sessions endpoint fails, use known session directly
+        setSession('e8076d73-ce66-4ed8-85fb-ef715f8844cf', 'First Audit Test');
+      });
+    }
   }
 
   if (document.readyState === 'loading') {

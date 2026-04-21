@@ -1,0 +1,353 @@
+{
+  "session": {
+    "session_id": "e8076d73-ce66-4ed8-85fb-ef715f8844cf",
+    "name": "Live Audit"
+  },
+  "devices": [
+    {
+      "mac_address": "54:22:e0:39:4f:18",
+      "device_type": "ap",
+      "vendor": "TP-Link",
+      "rssi_dbm": -98,
+      "channel": 0,
+      "bandwidth": "2.4GHz",
+      "risk_score": 0.1,
+      "ssid": "270437378",
+      "is_randomized_mac": false,
+      "first_seen": "2026-04-21T15:42:29Z",
+      "last_seen": "2026-04-21T17:30:00Z"
+    },
+    {
+      "mac_address": "54:22:e0:39:c1:f5",
+      "device_type": "ap",
+      "vendor": "TP-Link",
+      "rssi_dbm": -98,
+      "channel": 0,
+      "bandwidth": "2.4GHz",
+      "risk_score": 0.1,
+      "ssid": "-",
+      "is_randomized_mac": false,
+      "first_seen": "2026-04-21T15:42:29Z",
+      "last_seen": "2026-04-21T17:30:00Z"
+    },
+    {
+      "mac_address": "56:22:e0:39:c1:fb",
+      "device_type": "phone",
+      "vendor": "TP-Link",
+      "rssi_dbm": -98,
+      "channel": 0,
+      "bandwidth": "2.4GHz",
+      "risk_score": 0.3,
+      "ssid": "-",
+      "is_randomized_mac": true,
+      "first_seen": "2026-04-21T15:42:29Z",
+      "last_seen": "2026-04-21T17:30:00Z"
+    },
+    {
+      "mac_address": "54:22:e0:39:c1:f8",
+      "device_type": "ap",
+      "vendor": "TP-Link",
+      "rssi_dbm": -98,
+      "channel": 0,
+      "bandwidth": "2.4GHz",
+      "risk_score": 0.1,
+      "ssid": "Teer",
+      "is_randomized_mac": false,
+      "first_seen": "2026-04-21T15:42:29Z",
+      "last_seen": "2026-04-21T17:30:00Z"
+    },
+    {
+      "mac_address": "54:22:e0:f1:18:15",
+      "device_type": "ap",
+      "vendor": "TP-Link",
+      "rssi_dbm": -98,
+      "channel": 0,
+      "bandwidth": "2.4GHz",
+      "risk_score": 0.1,
+      "ssid": "-",
+      "is_randomized_mac": false,
+      "first_seen": "2026-04-21T15:42:29Z",
+      "last_seen": "2026-04-21T17:30:00Z"
+    },
+    {
+      "mac_address": "56:22:e0:f1:18:1b",
+      "device_type": "phone",
+      "vendor": "TP-Link",
+      "rssi_dbm": -98,
+      "channel": 0,
+      "bandwidth": "2.4GHz",
+      "risk_score": 0.3,
+      "ssid": "-",
+      "is_randomized_mac": true,
+      "first_seen": "2026-04-21T15:42:29Z",
+      "last_seen": "2026-04-21T17:30:00Z"
+    },
+    {
+      "mac_address": "54:22:e0:19:dd:65",
+      "device_type": "ap",
+      "vendor": "TP-Link",
+      "rssi_dbm": -98,
+      "channel": 0,
+      "bandwidth": "2.4GHz",
+      "risk_score": 0.1,
+      "ssid": "-",
+      "is_randomized_mac": false,
+      "first_seen": "2026-04-21T15:42:29Z",
+      "last_seen": "2026-04-21T17:30:00Z"
+    },
+    {
+      "mac_address": "54:22:e0:19:dd:68",
+      "device_type": "ap",
+      "vendor": "TP-Link",
+      "rssi_dbm": -98,
+      "channel": 0,
+      "bandwidth": "2.4GHz",
+      "risk_score": 0.1,
+      "ssid": "jo rolo",
+      "is_randomized_mac": false,
+      "first_seen": "2026-04-21T15:42:29Z",
+      "last_seen": "2026-04-21T17:30:00Z"
+    },
+    {
+      "mac_address": "00:13:37:a8:33:77",
+      "device_type": "ap",
+      "vendor": "Hak5 (Pineapple)",
+      "rssi_dbm": -98,
+      "channel": 0,
+      "bandwidth": "2.4GHz",
+      "risk_score": 0.0,
+      "ssid": "free_wifi",
+      "is_randomized_mac": false,
+      "first_seen": "2026-04-21T15:42:29Z",
+      "last_seen": "2026-04-21T17:30:00Z"
+    },
+    {
+      "mac_address": "00:13:37:be:ef:00",
+      "device_type": "ap",
+      "vendor": "Hak5 (Pineapple)",
+      "rssi_dbm": -98,
+      "channel": 0,
+      "bandwidth": "2.4GHz",
+      "risk_score": 0.0,
+      "ssid": "PasswordIsPassword",
+      "is_randomized_mac": false,
+      "first_seen": "2026-04-21T15:42:29Z",
+      "last_seen": "2026-04-21T17:30:00Z"
+    },
+    {
+      "mac_address": "3c:ef:42:9b:9a:d8",
+      "device_type": "unknown",
+      "vendor": "Unknown",
+      "rssi_dbm": -98,
+      "channel": 0,
+      "bandwidth": "2.4GHz",
+      "risk_score": 0.5,
+      "ssid": "-",
+      "is_randomized_mac": false,
+      "first_seen": "2026-04-21T15:42:29Z",
+      "last_seen": "2026-04-21T17:30:00Z"
+    },
+    {
+      "mac_address": "02:13:37:a8:33:77",
+      "device_type": "phone",
+      "vendor": "Unknown",
+      "rssi_dbm": -98,
+      "channel": 0,
+      "bandwidth": "2.4GHz",
+      "risk_score": 0.3,
+      "ssid": "-",
+      "is_randomized_mac": true,
+      "first_seen": "2026-04-21T15:42:29Z",
+      "last_seen": "2026-04-21T17:30:00Z"
+    },
+    {
+      "mac_address": "54:22:e0:39:4f:15",
+      "device_type": "ap",
+      "vendor": "TP-Link",
+      "rssi_dbm": -98,
+      "channel": 0,
+      "bandwidth": "2.4GHz",
+      "risk_score": 0.1,
+      "ssid": "-",
+      "is_randomized_mac": false,
+      "first_seen": "2026-04-21T15:42:29Z",
+      "last_seen": "2026-04-21T17:30:00Z"
+    },
+    {
+      "mac_address": "56:22:e0:39:4f:1b",
+      "device_type": "phone",
+      "vendor": "TP-Link",
+      "rssi_dbm": -98,
+      "channel": 0,
+      "bandwidth": "2.4GHz",
+      "risk_score": 0.3,
+      "ssid": "-",
+      "is_randomized_mac": true,
+      "first_seen": "2026-04-21T15:42:29Z",
+      "last_seen": "2026-04-21T17:30:00Z"
+    },
+    {
+      "mac_address": "54:22:e0:f1:18:18",
+      "device_type": "ap",
+      "vendor": "TP-Link",
+      "rssi_dbm": -98,
+      "channel": 0,
+      "bandwidth": "2.4GHz",
+      "risk_score": 0.1,
+      "ssid": "Ravs",
+      "is_randomized_mac": false,
+      "first_seen": "2026-04-21T15:42:29Z",
+      "last_seen": "2026-04-21T17:30:00Z"
+    },
+    {
+      "mac_address": "56:22:e0:39:f6:fb",
+      "device_type": "phone",
+      "vendor": "TP-Link",
+      "rssi_dbm": -98,
+      "channel": 0,
+      "bandwidth": "2.4GHz",
+      "risk_score": 0.3,
+      "ssid": "-",
+      "is_randomized_mac": true,
+      "first_seen": "2026-04-21T15:42:29Z",
+      "last_seen": "2026-04-21T17:30:00Z"
+    },
+    {
+      "mac_address": "08:33:ed:43:c8:ed",
+      "device_type": "ap",
+      "vendor": "Unknown",
+      "rssi_dbm": -98,
+      "channel": 0,
+      "bandwidth": "2.4GHz",
+      "risk_score": 0.5,
+      "ssid": "-",
+      "is_randomized_mac": false,
+      "first_seen": "2026-04-21T15:42:29Z",
+      "last_seen": "2026-04-21T17:30:00Z"
+    },
+    {
+      "mac_address": "0c:ef:af:ce:b9:69",
+      "device_type": "unknown",
+      "vendor": "Unknown",
+      "rssi_dbm": -98,
+      "channel": 0,
+      "bandwidth": "2.4GHz",
+      "risk_score": 0.5,
+      "ssid": "-",
+      "is_randomized_mac": false,
+      "first_seen": "2026-04-21T15:42:29Z",
+      "last_seen": "2026-04-21T17:30:00Z"
+    },
+    {
+      "mac_address": "54:22:e0:f1:0f:b8",
+      "device_type": "ap",
+      "vendor": "TP-Link",
+      "rssi_dbm": -98,
+      "channel": 0,
+      "bandwidth": "2.4GHz",
+      "risk_score": 0.1,
+      "ssid": "MWIFI",
+      "is_randomized_mac": false,
+      "first_seen": "2026-04-21T15:42:29Z",
+      "last_seen": "2026-04-21T17:30:00Z"
+    },
+    {
+      "mac_address": "70:66:2a:10:13:f4",
+      "device_type": "unknown",
+      "vendor": "Unknown",
+      "rssi_dbm": -98,
+      "channel": 0,
+      "bandwidth": "2.4GHz",
+      "risk_score": 0.5,
+      "ssid": "Narcis\u2019s iphone ",
+      "is_randomized_mac": false,
+      "first_seen": "2026-04-21T15:42:29Z",
+      "last_seen": "2026-04-21T17:30:00Z"
+    }
+  ],
+  "events": [
+    {
+      "event_key": "1",
+      "event_type": "stationary",
+      "zone": "zone_A",
+      "confidence": 0.85,
+      "device_count": 20,
+      "timestamp": "2026-04-21T17:30:00Z"
+    },
+    {
+      "event_key": "2",
+      "event_type": "entry",
+      "zone": "zone_A",
+      "confidence": 0.92,
+      "device_count": 3,
+      "timestamp": "2026-04-21T17:28:00Z"
+    },
+    {
+      "event_key": "3",
+      "event_type": "moving",
+      "zone": "zone_B",
+      "confidence": 0.78,
+      "device_count": 5,
+      "timestamp": "2026-04-21T17:25:00Z"
+    }
+  ],
+  "map": {
+    "heatmap": [
+      [
+        -50,
+        -55,
+        -60,
+        -65,
+        -70
+      ],
+      [
+        -55,
+        -60,
+        -65,
+        -70,
+        -75
+      ],
+      [
+        -60,
+        -65,
+        -70,
+        -75,
+        -80
+      ],
+      [
+        -65,
+        -70,
+        -75,
+        -80,
+        -85
+      ],
+      [
+        -70,
+        -75,
+        -80,
+        -85,
+        -90
+      ]
+    ],
+    "walls": [
+      {
+        "start": [
+          1,
+          2
+        ],
+        "end": [
+          4,
+          2
+        ],
+        "confidence": 0.7
+      }
+    ],
+    "grid_bounds": {
+      "x_min": 0,
+      "x_max": 10,
+      "y_min": 0,
+      "y_max": 10
+    },
+    "confidence": 0.75
+  }
+}
