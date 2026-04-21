@@ -158,9 +158,10 @@ def create_position(event: dict[str, Any]) -> dict[str, Any]:
 
 def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     """Main Lambda handler - routes requests to appropriate function."""
-    http_method = event.get("httpMethod", "")
-    resource = event.get("resource", "")
-    path = event.get("path", "")
+    # Support both API Gateway v1 (httpMethod/path) and v2 (requestContext.http)
+    rc_http = event.get("requestContext", {}).get("http", {})
+    http_method = rc_http.get("method", "") or event.get("httpMethod", "")
+    path = event.get("rawPath", "") or event.get("path", "")
 
     if http_method == "OPTIONS":
         return _response(200, {})
