@@ -1,0 +1,125 @@
+#cloud-config
+
+hostname: 5map-edge
+manage_etc_hosts: true
+
+users:
+  - name: ossiem
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    lock_passwd: false
+    passwd: $6$rounds=4096$saltsalt$YbCM7xBdNMo0GNkmPOlVSwfDTqg3PVgzapHIpbNFfqF6oRCTHrGcUH7nKZwsI2JhTtJDf6l7fthnXdMCVgJxk1
+
+packages:
+  - python3
+  - python3-pip
+  - python3-venv
+  - git
+  - mosquitto-clients
+  - net-tools
+  - wireless-tools
+  - aircrack-ng
+  - tcpdump
+  - curl
+  - jq
+  - nodejs
+  - npm
+  - build-essential
+  - cmake
+
+write_files:
+  - path: /etc/5map/config.yaml
+    content: |
+      sensor:
+        id: edge-node-001
+        type: rssi
+      radios:
+        radio_monitor:
+          interface: wlan0
+          band: 2.4GHz
+          channels: [1, 6, 11]
+          mode: monitor
+      capture:
+        window_seconds: 1
+        max_observations_per_window: 10000
+        channel_dwell_ms: 200
+        buffer_max_size: 50000
+      transport:
+        type: mqtt
+        mqtt:
+          broker: a2qz7dpyqsh35h-ats.iot.eu-west-2.amazonaws.com
+          port: 8883
+          topic: 5map/rssi/{sensor_id}
+          qos: 1
+          keepalive: 60
+          tls: true
+          cert_dir: /etc/5map/certs
+          ca_cert: AmazonRootCA1.pem
+          client_cert: certificate.pem.crt
+          private_key: private.pem.key
+        queue_max_size: 1000
+      logging:
+        level: INFO
+        file: /var/log/5map-agent.log
+        max_bytes: 5242880
+        backup_count: 3
+
+  - path: /etc/systemd/system/5map-edge.service
+    content: |
+      [Unit]
+      Description=5map Edge Node Agent
+      After=network-online.target
+      Wants=network-online.target
+      [Service]
+      Type=simple
+      ExecStart=/opt/5map/.venv/bin/python3 /opt/5map/pineapple/capture_agent.py --config /etc/5map/config.yaml
+      Restart=always
+      RestartSec=10
+      User=root
+      WorkingDirectory=/opt/5map
+      [Install]
+      WantedBy=multi-user.target
+
+  - path: /etc/systemd/system/5map-dashboard.service
+    content: |
+      [Unit]
+      Description=5map Dashboard Server
+      After=network-online.target
+      [Service]
+      Type=simple
+      ExecStart=/usr/bin/python3 -m http.server 8080
+      WorkingDirectory=/opt/5map/dashboard
+      Restart=always
+      RestartSec=5
+      User=ossiem
+      [Install]
+      WantedBy=multi-user.target
+
+  - path: /etc/motd
+    content: |
+
+       ___
+      | __| _ __   __ _  _ __
+      |__ \| '  \ / _` || '_ \
+      |___/|_|_|_|\__,_|| .__/
+                        |_|
+      WiFi Environment Mapper & Security Audit Tool
+
+      Dashboard:  http://localhost:8080
+      Config:     /etc/5map/config.yaml
+      Agent:      systemctl status 5map-edge
+      Logs:       journalctl -u 5map-edge -f
+
+
+runcmd:
+  - mkdir -p /etc/5map/certs /opt/5map
+  - git clone https://github.com/ossiemarks/5map.git /opt/5map
+  - cd /opt/5map && python3 -m venv .venv
+  - /opt/5map/.venv/bin/pip install -e ".[dev,ml]"
+  - /opt/5map/.venv/bin/pip install boto3
+  - systemctl daemon-reload
+  - systemctl enable 5map-dashboard.service
+  - systemctl start 5map-dashboard.service
+  - echo "5map edge node setup complete"
+
+final_message: "5map edge node ready after $UPTIME seconds"

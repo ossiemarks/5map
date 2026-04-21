@@ -55,3 +55,6 @@ terraform/.terraform/modules/
 terraform/.build/
 terraform/tfplan
 terraform/.terraform/terraform.tfstate
+vm-image/*.qcow2
+vm-image/*.vdi
+vm-image/*.iso

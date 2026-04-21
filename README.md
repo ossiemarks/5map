@@ -33,6 +33,37 @@ WiFi-based environment mapping, device tracking, and presence detection tool for
 └──────────────────────────────────────────────────────────────────┘
 ```
 
+## Component Roles
+
+### WiFi Pineapple Mark VII — The Sensor
+The Pineapple is the **data collection** device. It captures raw WiFi frames in monitor mode across dual radios (2.4GHz + 5GHz), extracting RSSI, MAC addresses, SSIDs, and frame types from every WiFi device in range. It detects MAC randomization, hops across channels, and streams observation windows to AWS via MQTT. It is a portable, battery-powered dumb pipe — captures and forwards with no ML processing (128MB RAM, MIPS CPU can't handle inference).
+
+### Raspberry Pi — The Edge Brain
+The Pi is the **local processing** node. It receives CSI data from the ESP32 array via USB serial, runs local ML inference (environment mapper, presence detector) for low-latency decisions (<100ms vs ~500ms to AWS), and relays results to the cloud. It also provides internet connectivity to the Pineapple in the field (via LTE hotspot or site WiFi), hosts ESP-IDF for flashing ESP32 firmware, and can run the dashboard server for offline audits. With the Pi, no laptop is needed — it's a self-contained field kit.
+
+### ESP32 Array — The CSI Receivers
+3-4 ESP32 modules (~$5 each) positioned around the space capture WiFi Channel State Information — per-subcarrier amplitude and phase data at 64 subcarriers per device. This is far richer than RSSI (a single number) and enables gesture recognition, centimeter-level positioning, and fine-grained activity detection. They connect to the Pi via USB serial, streaming raw CSI frames.
+
+### AWS Cloud — The Backend
+AWS handles heavy ML processing, persistent storage, API serving, and multi-client access. IoT Core ingests MQTT from the Pineapple/Pi, Kinesis buffers the stream, Lambda preprocesses and routes data, SageMaker runs ML inference, DynamoDB stores results, and API Gateway serves the mobile app and web dashboard.
+
+### Field Deployment (Current vs Future)
+
+**Now** (Pineapple only):
+```
+Pineapple ──(USB to laptop)──► laptop internet ──► AWS ──► Dashboard/App
+```
+
+**Future** (full kit, no laptop needed):
+```
+ESP32 array ──(serial CSI)──► Raspberry Pi ──(WiFi/LTE)──► AWS
+                                    ▲
+Pineapple ──(MQTT via Pi WiFi)──────┘
+                                    │
+                              React Native App
+                              (connects to Pi or AWS)
+```
+
 ## What It Does
 
 **Environment Mapping** - Walk through a space with the Pineapple, tag positions in the app, and 5map builds a signal strength heatmap with inferred wall positions using Gaussian Process regression.
@@ -318,6 +349,37 @@ pytest tests/ -v
 - **Pineapple Web UI**: `http://172.16.42.1:1471` / `root` / `hak5pineapple`
 - **AWS Account**: 835661413889 (eu-west-2)
 - **Session ID**: `e8076d73-ce66-4ed8-85fb-ef715f8844cf`
+
+## Reading the Dashboard
+
+### Signal Map (top-left)
+- **Green** = strong signal (-30 to -50 dBm) — you're close to an AP
+- **Yellow** = medium signal (-50 to -70 dBm) — moderate distance
+- **Red** = weak signal (-70 to -90 dBm) — far from AP or behind walls
+- **Dashed lines** = inferred walls/obstacles (detected by sharp signal drop-offs)
+- **Confidence %** = how reliable the map is (more tagged positions = higher confidence)
+
+### Device List (top-right)
+- **Type icons**: 📡 AP, 📱 phone, 💻 laptop, 🏠 IoT, ❓ unknown
+- **[R] badge** = randomized MAC (device is hiding its real identity — common on modern phones)
+- **Risk badges**: `LOW` (green, known vendor, normal behavior), `MED` (yellow, suspicious patterns), `HIGH` (red, potential rogue AP or attacker)
+- **RSSI bar** = visual signal strength. Longer = stronger signal = device is closer
+- Sort by clicking column headers
+
+### Presence Timeline (bottom-left)
+- **Green dot / Entry** = new device(s) appeared in zone
+- **Red dot / Exit** = device(s) left the zone
+- **Cyan dot / Moving** = devices detected moving (RSSI fluctuating periodically)
+- **Gray dot / Stationary** = devices present but not moving
+- **Confidence %** = how certain the classification is
+- Most recent events at top
+
+### Stats Panel (bottom-right)
+- **Total Devices** = unique MACs seen in this session
+- **Rogue Devices** = devices with risk score >= 0.6 (investigate these)
+- **Randomized MACs** = devices hiding real identity (normal for phones, suspicious for APs)
+- **Active Zones** = number of distinct zones with activity
+- **WebSocket dot** = green when real-time updates are flowing, red when polling
 
 ## Future Roadmap
 
