@@ -1051,16 +1051,33 @@ a{color:var(--cyan);text-decoration:none}
       wsSend('subscribe', { session_id: sessionId });
     }
 
+    // Helper: parse JSON strings inside DynamoDB responses
+    function parseIfString(val) {
+      if (typeof val === 'string') { try { return JSON.parse(val); } catch(e) { return val; } }
+      return val;
+    }
+    function fixDevice(d) {
+      d.risk_score = parseFloat(d.risk_score) || 0;
+      d.rssi_dbm = parseInt(d.rssi_dbm) || -100;
+      d.channel = parseInt(d.channel) || 0;
+      d.mac = d.mac_address || d.mac || '';
+      return d;
+    }
+    function fixMapItem(item) {
+      item.heatmap = parseIfString(item.heatmap);
+      item.walls = parseIfString(item.walls);
+      item.grid_bounds = parseIfString(item.grid_bounds);
+      item.confidence = parseFloat(item.confidence) || 0;
+      return item;
+    }
+
     // Fetch initial data
     fetchMap(sessionId).then(function(data) {
       if (data) {
-        // API returns { session_id, items: [...] } where items contain map data
-        // or it might return a MapData object directly
         if (data.heatmap) {
-          state.mapData = data;
+          state.mapData = fixMapItem(data);
         } else if (data.items && data.items.length > 0) {
-          // Use the most recent item
-          state.mapData = data.items[data.items.length - 1];
+          state.mapData = fixMapItem(data.items[data.items.length - 1]);
         }
         renderMap();
         updateTimestamp();
@@ -1069,7 +1086,7 @@ a{color:var(--cyan);text-decoration:none}
 
     fetchDevices(sessionId).then(function(data) {
       if (data) {
-        state.devices = data.devices || data.data || [];
+        state.devices = (data.devices || data.data || []).map(fixDevice);
         renderDevices();
         updateStats();
         updateTimestamp();
@@ -1078,8 +1095,11 @@ a{color:var(--cyan);text-decoration:none}
 
     fetchPresence(sessionId).then(function(data) {
       if (data) {
-        const evts = data.events || data.data || [];
-        // Sort descending by timestamp
+        var evts = (data.events || data.data || []).map(function(e) {
+          e.confidence = parseFloat(e.confidence) || 0;
+          e.device_count = parseInt(e.device_count) || 0;
+          return e;
+        });
         evts.sort(function(a, b) { return new Date(b.timestamp) - new Date(a.timestamp); });
         state.events = evts.slice(0, MAX_EVENTS);
         renderTimeline();
@@ -1087,6 +1107,12 @@ a{color:var(--cyan);text-decoration:none}
         updateTimestamp();
       }
     });
+
+    // Auto-refresh every 5 seconds (poll until WebSocket is streaming)
+    if (state.pollTimer) clearInterval(state.pollTimer);
+    state.pollTimer = setInterval(function() {
+      if (state.sessionId) setSession(state.sessionId, state.sessionName);
+    }, 5000);
   }
 
   // Session select
