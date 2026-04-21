@@ -9,6 +9,7 @@
 :root{
   --bg:#0a0e17;--card:#131a2b;--border:#1e2d4a;
   --cyan:#00d4ff;--danger:#ff4757;--warn:#ffa502;--success:#2ed573;
+  --purple:#a855f7;--blue:#3b82f6;
   --text:#e8eaed;--muted:#8892a4;--dim:#4a5568;
   --font-mono:'SF Mono','Fira Code','Cascadia Code',monospace;
   --font-sans:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
@@ -58,16 +59,28 @@ a{color:var(--cyan);text-decoration:none}
 @keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(46,213,115,.6)}50%{opacity:.7;box-shadow:0 0 0 6px rgba(46,213,115,0)}}
 .last-update{font-size:.72rem;color:var(--dim);font-family:var(--font-mono)}
 
-/* ── Grid ── */
+/* ── Grid Layout ── */
 .grid{
   display:grid;
-  grid-template-columns:1fr 1fr;
+  grid-template-columns:2fr 1fr;
   grid-template-rows:1fr 1fr;
-  gap:16px;padding:16px;
+  gap:12px;padding:12px;
   height:calc(100vh - 56px);
+  box-sizing:border-box;
 }
-@media(max-width:900px){
+.grid-row2{
+  grid-column:1 / -1;
+  grid-row:2;
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  grid-template-rows:1fr;
+  gap:12px;
+  min-height:0;
+  align-self:stretch;
+}
+@media(max-width:1200px){
   .grid{grid-template-columns:1fr;grid-template-rows:auto;height:auto}
+  .grid-row2{grid-template-columns:1fr;grid-column:1;grid-row:auto;grid-template-rows:auto}
 }
 
 /* ── Panel ── */
@@ -76,26 +89,29 @@ a{color:var(--cyan);text-decoration:none}
   border-radius:10px;overflow:hidden;
   display:flex;flex-direction:column;
   min-height:0;
+  height:100%;
+  box-sizing:border-box;
 }
 .panel-head{
   display:flex;align-items:center;justify-content:space-between;
-  padding:12px 16px;border-bottom:1px solid var(--border);
+  padding:10px 14px;border-bottom:1px solid var(--border);
   flex-shrink:0;
 }
 .panel-title{
-  font-size:.82rem;font-weight:600;text-transform:uppercase;
+  font-size:.78rem;font-weight:600;text-transform:uppercase;
   letter-spacing:.06em;color:var(--muted);
   display:flex;align-items:center;gap:8px;
 }
 .panel-title .icon{font-size:1rem}
 .panel-body{flex:1;overflow:auto;position:relative;min-height:0}
 .panel-badge{
-  font-size:.7rem;font-weight:700;
+  font-size:.68rem;font-weight:700;
   padding:2px 7px;border-radius:10px;
   color:#fff;
 }
 
-/* ── Signal Map (Canvas) ── */
+/* ── Signal Map (Canvas) with Metrics Overlay ── */
+.map-wrapper{position:relative;width:100%;height:100%}
 #map-canvas{width:100%;height:100%;display:block;background:#080c14}
 .map-legend{
   position:absolute;bottom:10px;right:10px;
@@ -113,40 +129,81 @@ a{color:var(--cyan);text-decoration:none}
 }
 .map-no-data svg{width:48px;height:48px;fill:var(--dim);opacity:.4}
 
+/* Signal Metrics Overlay */
+.map-metrics{
+  position:absolute;top:8px;left:8px;
+  background:rgba(10,14,23,.92);
+  border:1px solid var(--border);border-radius:8px;
+  padding:10px 12px;
+  display:flex;flex-direction:column;gap:6px;
+  font-size:.7rem;color:var(--muted);
+  min-width:170px;
+  backdrop-filter:blur(8px);
+  z-index:5;
+}
+.map-metrics-title{
+  font-size:.68rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--cyan);
+  margin-bottom:2px;border-bottom:1px solid var(--border);
+  padding-bottom:4px;
+}
+.metric-row{
+  display:flex;justify-content:space-between;align-items:center;
+  gap:8px;
+}
+.metric-label{color:var(--dim);font-size:.66rem}
+.metric-value{
+  font-family:var(--font-mono);font-size:.72rem;
+  color:var(--text);font-weight:600;
+}
+.metric-value.good{color:var(--success)}
+.metric-value.ok{color:var(--warn)}
+.metric-value.bad{color:var(--danger)}
+.metric-value.info{color:var(--cyan)}
+.metric-divider{
+  height:1px;background:var(--border);margin:2px 0;
+}
+
 /* ── Device Table ── */
-.device-table{width:100%;border-collapse:collapse;font-size:.78rem}
+.device-table{width:100%;border-collapse:collapse;font-size:.74rem}
 .device-table thead{position:sticky;top:0;z-index:2}
 .device-table th{
   background:var(--bg);color:var(--muted);
   font-weight:600;text-transform:uppercase;letter-spacing:.04em;
-  padding:8px 10px;text-align:left;cursor:pointer;
-  user-select:none;white-space:nowrap;font-size:.7rem;
+  padding:6px 8px;text-align:left;cursor:pointer;
+  user-select:none;white-space:nowrap;font-size:.66rem;
 }
 .device-table th:hover{color:var(--cyan)}
-.device-table th .sort-arrow{font-size:.6rem;margin-left:3px;opacity:.5}
+.device-table th .sort-arrow{font-size:.55rem;margin-left:2px;opacity:.5}
 .device-table th.active .sort-arrow{opacity:1;color:var(--cyan)}
 .device-table td{
-  padding:7px 10px;border-top:1px solid rgba(30,45,74,.4);
+  padding:5px 8px;border-top:1px solid rgba(30,45,74,.4);
   white-space:nowrap;transition:background .3s;
 }
 .device-table tr.highlight td{background:rgba(0,212,255,.06)}
 .device-table tr:hover td{background:rgba(255,255,255,.03)}
-.mac-cell{font-family:var(--font-mono);font-size:.72rem;color:var(--text)}
+.mac-cell{font-family:var(--font-mono);font-size:.68rem;color:var(--text)}
 .mac-rand{
-  font-size:.55rem;font-weight:700;color:var(--warn);
-  background:rgba(255,165,2,.12);padding:1px 4px;border-radius:3px;
-  margin-left:4px;vertical-align:middle;
+  font-size:.52rem;font-weight:700;color:var(--warn);
+  background:rgba(255,165,2,.12);padding:1px 3px;border-radius:3px;
+  margin-left:3px;vertical-align:middle;
 }
-.vendor-cell{color:var(--muted);max-width:100px;overflow:hidden;text-overflow:ellipsis}
-.type-icon{font-size:1rem;text-align:center}
-.rssi-cell{font-family:var(--font-mono);font-size:.72rem}
+.vendor-cell{color:var(--muted);max-width:90px;overflow:hidden;text-overflow:ellipsis}
+.ssid-cell{color:var(--cyan);font-family:var(--font-mono);font-size:.68rem;max-width:80px;overflow:hidden;text-overflow:ellipsis}
+.channel-cell{font-family:var(--font-mono);font-size:.68rem;color:var(--muted);text-align:center}
+.band-cell{font-size:.62rem;font-weight:600}
+.band-24{color:var(--warn)}
+.band-5{color:var(--purple)}
+.time-cell{font-family:var(--font-mono);font-size:.62rem;color:var(--dim)}
+.type-icon{font-size:.9rem;text-align:center}
+.rssi-cell{font-family:var(--font-mono);font-size:.68rem}
 .rssi-bar{
-  width:50px;height:4px;background:var(--bg);border-radius:2px;
-  display:inline-block;vertical-align:middle;margin-left:6px;overflow:hidden;
+  width:40px;height:4px;background:var(--bg);border-radius:2px;
+  display:inline-block;vertical-align:middle;margin-left:4px;overflow:hidden;
 }
 .rssi-bar-fill{height:100%;border-radius:2px;transition:width .5s}
 .risk-badge{
-  font-size:.65rem;font-weight:700;padding:2px 6px;
+  font-size:.62rem;font-weight:700;padding:2px 5px;
   border-radius:4px;color:#fff;display:inline-block;
 }
 .risk-high{background:rgba(255,71,87,.2);color:var(--danger)}
@@ -157,27 +214,58 @@ a{color:var(--cyan);text-decoration:none}
   height:100%;color:var(--dim);font-size:.85rem;
 }
 
+/* ── Bluetooth Table ── */
+.bt-table{width:100%;border-collapse:collapse;font-size:.74rem}
+.bt-table thead{position:sticky;top:0;z-index:2}
+.bt-table th{
+  background:var(--bg);color:var(--muted);
+  font-weight:600;text-transform:uppercase;letter-spacing:.04em;
+  padding:6px 8px;text-align:left;cursor:pointer;
+  user-select:none;white-space:nowrap;font-size:.66rem;
+}
+.bt-table th:hover{color:var(--purple)}
+.bt-table th .sort-arrow{font-size:.55rem;margin-left:2px;opacity:.5}
+.bt-table th.active .sort-arrow{opacity:1;color:var(--purple)}
+.bt-table td{
+  padding:5px 8px;border-top:1px solid rgba(30,45,74,.4);
+  white-space:nowrap;transition:background .3s;
+}
+.bt-table tr:hover td{background:rgba(168,85,247,.04)}
+.bt-type-badge{
+  font-size:.58rem;font-weight:700;padding:2px 5px;
+  border-radius:3px;display:inline-block;
+}
+.bt-type-ble{background:rgba(59,130,246,.15);color:var(--blue)}
+.bt-type-classic{background:rgba(168,85,247,.15);color:var(--purple)}
+.bt-type-beacon{background:rgba(255,165,2,.12);color:var(--warn)}
+.bt-mfr-cell{color:var(--muted);font-size:.7rem;max-width:80px;overflow:hidden;text-overflow:ellipsis}
+.bt-name-cell{font-size:.72rem;color:var(--text);max-width:100px;overflow:hidden;text-overflow:ellipsis}
+.bt-empty{
+  display:flex;align-items:center;justify-content:center;
+  height:100%;color:var(--dim);font-size:.85rem;
+}
+
 /* ── Presence Timeline ── */
-.timeline{padding:12px 16px;display:flex;flex-direction:column;gap:0}
+.timeline{padding:10px 14px;display:flex;flex-direction:column;gap:0}
 .tl-item{
-  display:flex;gap:12px;position:relative;
+  display:flex;gap:10px;position:relative;
   padding-bottom:2px;
 }
 .tl-track{
   display:flex;flex-direction:column;align-items:center;
-  width:16px;flex-shrink:0;
+  width:14px;flex-shrink:0;
 }
 .tl-dot{
-  width:10px;height:10px;border-radius:50%;flex-shrink:0;
+  width:8px;height:8px;border-radius:50%;flex-shrink:0;
   margin-top:3px;
 }
 .tl-line{width:2px;flex:1;background:var(--border);margin-top:3px}
-.tl-content{flex:1;padding-bottom:14px}
+.tl-content{flex:1;padding-bottom:12px}
 .tl-row{display:flex;align-items:center;justify-content:space-between}
-.tl-type{font-size:.78rem;font-weight:600}
-.tl-time{font-size:.68rem;color:var(--dim);font-family:var(--font-mono)}
-.tl-zone{font-size:.75rem;color:var(--muted);margin-top:2px}
-.tl-conf{font-size:.68rem;color:var(--dim);margin-top:1px}
+.tl-type{font-size:.75rem;font-weight:600}
+.tl-time{font-size:.65rem;color:var(--dim);font-family:var(--font-mono)}
+.tl-zone{font-size:.72rem;color:var(--muted);margin-top:2px}
+.tl-conf{font-size:.65rem;color:var(--dim);margin-top:1px}
 .tl-empty{
   display:flex;align-items:center;justify-content:center;
   height:100%;color:var(--dim);font-size:.85rem;
@@ -188,28 +276,31 @@ a{color:var(--cyan);text-decoration:none}
 /* ── Stats Panel ── */
 .stats-grid{
   display:grid;grid-template-columns:1fr 1fr;
-  gap:12px;padding:16px;
+  gap:8px;padding:12px;
 }
 .stat-card{
   background:var(--bg);border:1px solid var(--border);
-  border-radius:8px;padding:14px;
-  display:flex;flex-direction:column;gap:4px;
+  border-radius:8px;padding:10px 12px;
+  display:flex;flex-direction:column;gap:2px;
 }
-.stat-label{font-size:.68rem;color:var(--dim);text-transform:uppercase;letter-spacing:.05em}
+.stat-label{font-size:.62rem;color:var(--dim);text-transform:uppercase;letter-spacing:.05em}
 .stat-value{
-  font-size:1.6rem;font-weight:700;font-family:var(--font-mono);
-  color:var(--text);line-height:1;
+  font-size:1.3rem;font-weight:700;font-family:var(--font-mono);
+  color:var(--text);line-height:1.1;
   transition:color .3s;
 }
+.stat-sub{font-size:.58rem;color:var(--dim);font-family:var(--font-mono);margin-top:1px}
 .stat-value.danger{color:var(--danger)}
 .stat-value.warn{color:var(--warn)}
 .stat-value.cyan{color:var(--cyan)}
+.stat-value.purple{color:var(--purple)}
+.stat-value.success{color:var(--success)}
 .stat-actions{
-  padding:0 16px 16px;display:flex;flex-direction:column;gap:10px;
+  padding:0 12px 12px;display:flex;flex-direction:column;gap:8px;
 }
 .stat-conn{
   display:flex;align-items:center;gap:8px;
-  font-size:.75rem;color:var(--muted);
+  font-size:.72rem;color:var(--muted);
 }
 
 /* ── Controls ── */
@@ -218,18 +309,18 @@ a{color:var(--cyan);text-decoration:none}
   width:100%;appearance:none;
   background:var(--bg);color:var(--text);
   border:1px solid var(--border);border-radius:6px;
-  padding:8px 32px 8px 10px;font-size:.78rem;
+  padding:7px 28px 7px 10px;font-size:.75rem;
   font-family:var(--font-mono);cursor:pointer;
 }
 .select-wrap select:focus{outline:none;border-color:var(--cyan)}
 .select-wrap::after{
   content:'\25BC';position:absolute;right:10px;top:50%;
-  transform:translateY(-50%);font-size:.6rem;color:var(--muted);
+  transform:translateY(-50%);font-size:.55rem;color:var(--muted);
   pointer-events:none;
 }
 .btn{
-  padding:8px 16px;border:none;border-radius:6px;
-  font-size:.78rem;font-weight:600;cursor:pointer;
+  padding:7px 14px;border:none;border-radius:6px;
+  font-size:.75rem;font-weight:600;cursor:pointer;
   transition:all .15s;font-family:var(--font-sans);
 }
 .btn-primary{
@@ -282,7 +373,7 @@ a{color:var(--cyan);text-decoration:none}
 .modal-divider::before,.modal-divider::after{content:'';flex:1;height:1px;background:var(--border)}
 
 /* ── Scrollbar ── */
-::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 ::-webkit-scrollbar-thumb:hover{background:var(--dim)}
@@ -308,6 +399,10 @@ a{color:var(--cyan);text-decoration:none}
     <span class="session-label" id="session-label">No session</span>
   </div>
   <div class="header-right">
+    <div style="display:flex;align-items:center;gap:4px">
+      <a href="index.html" style="font-size:.75rem;color:var(--cyan);padding:4px 10px;border-radius:6px;background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.25)">Main Dashboard</a>
+      <a href="visual-indicators.html" style="font-size:.75rem;color:var(--muted);padding:4px 10px;border-radius:6px;border:1px solid transparent;transition:all .15s" onmouseover="this.style.color='var(--cyan)';this.style.background='rgba(0,212,255,.06)';this.style.borderColor='rgba(0,212,255,.15)'" onmouseout="this.style.color='var(--muted)';this.style.background='transparent';this.style.borderColor='transparent'">Visual Indicators</a>
+    </div>
     <div class="status-pill">
       <span class="status-dot dead" id="ws-dot"></span>
       <span id="ws-status-text">Disconnected</span>
@@ -319,75 +414,60 @@ a{color:var(--cyan);text-decoration:none}
 <!-- Main Grid -->
 <main class="grid">
 
-  <!-- Signal Map -->
+  <!-- Row 1 Col 1: Signal Map with Metrics Overlay -->
   <section class="panel" id="panel-map">
     <div class="panel-head">
-      <span class="panel-title"><span class="icon">📡</span> Signal Map</span>
+      <span class="panel-title"><span class="icon">&#x1F4E1;</span> Signal Map</span>
       <span class="panel-badge" style="background:rgba(0,212,255,.12);color:var(--cyan)" id="map-confidence">--</span>
     </div>
     <div class="panel-body" id="map-body">
-      <canvas id="map-canvas"></canvas>
-      <div class="map-legend">
-        <span>-90</span>
-        <div class="map-legend-bar"></div>
-        <span>-30 dBm</span>
+      <div class="map-wrapper">
+        <canvas id="map-canvas"></canvas>
+        <div class="map-metrics" id="map-metrics">
+          <div class="map-metrics-title">Signal Metrics</div>
+          <div class="metric-row"><span class="metric-label">Min RSSI</span><span class="metric-value bad" id="metric-min-rssi">--</span></div>
+          <div class="metric-row"><span class="metric-label">Max RSSI</span><span class="metric-value good" id="metric-max-rssi">--</span></div>
+          <div class="metric-row"><span class="metric-label">Avg RSSI</span><span class="metric-value info" id="metric-avg-rssi">--</span></div>
+          <div class="metric-divider"></div>
+          <div class="metric-row"><span class="metric-label">Coverage</span><span class="metric-value" id="metric-coverage">--</span></div>
+          <div class="metric-row"><span class="metric-label">APs Detected</span><span class="metric-value info" id="metric-aps">--</span></div>
+          <div class="metric-row"><span class="metric-label">Walls</span><span class="metric-value" id="metric-walls">--</span></div>
+          <div class="metric-row"><span class="metric-label">Wall Conf</span><span class="metric-value" id="metric-wall-conf">--</span></div>
+          <div class="metric-divider"></div>
+          <div class="metric-row"><span class="metric-label">Grid Size</span><span class="metric-value" id="metric-grid">--</span></div>
+          <div class="metric-row"><span class="metric-label">Signal Quality</span><span class="metric-value" id="metric-quality">--</span></div>
+        </div>
+        <div class="map-legend">
+          <span>-90</span>
+          <div class="map-legend-bar"></div>
+          <span>-30 dBm</span>
+        </div>
+        <div class="map-no-data" id="map-empty" style="display:none">
+          <svg viewBox="0 0 24 24"><path d="M1.29 7.35a15.56 15.56 0 0 1 21.42 0l.6.58-1.42 1.42-.6-.58a13.56 13.56 0 0 0-18.58 0l-.6.58L.69 7.93l.6-.58Zm4.24 4.24a10.44 10.44 0 0 1 12.94 0l.6.5-1.42 1.42-.52-.42a8.44 8.44 0 0 0-10.26 0l-.52.42-1.42-1.42.6-.5Zm4.24 4.24a5.32 5.32 0 0 1 4.46 0l.68.42-1.42 1.42-.38-.24a3.32 3.32 0 0 0-2.22 0l-.38.24-1.42-1.42.68-.42ZM12 18a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Z"/></svg>
+          <span>Waiting for signal data...</span>
+        </div>
       </div>
-      <div class="map-no-data" id="map-empty">
-        <svg viewBox="0 0 24 24"><path d="M1.29 7.35a15.56 15.56 0 0 1 21.42 0l.6.58-1.42 1.42-.6-.58a13.56 13.56 0 0 0-18.58 0l-.6.58L.69 7.93l.6-.58Zm4.24 4.24a10.44 10.44 0 0 1 12.94 0l.6.5-1.42 1.42-.52-.42a8.44 8.44 0 0 0-10.26 0l-.52.42-1.42-1.42.6-.5Zm4.24 4.24a5.32 5.32 0 0 1 4.46 0l.68.42-1.42 1.42-.38-.24a3.32 3.32 0 0 0-2.22 0l-.38.24-1.42-1.42.68-.42ZM12 18a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Z"/></svg>
-        <span>Waiting for signal data...</span>
-      </div>
     </div>
   </section>
 
-  <!-- Device List -->
-  <section class="panel" id="panel-devices">
-    <div class="panel-head">
-      <span class="panel-title"><span class="icon">📋</span> Devices</span>
-      <span class="panel-badge" style="background:rgba(0,212,255,.12);color:var(--cyan)" id="device-count">0</span>
-    </div>
-    <div class="panel-body" id="devices-body">
-      <div class="device-empty" id="devices-empty">No devices discovered</div>
-      <table class="device-table" id="device-table" style="display:none">
-        <thead>
-          <tr>
-            <th data-sort="device_type" style="width:36px">Type</th>
-            <th data-sort="mac_address">MAC</th>
-            <th data-sort="vendor">Vendor</th>
-            <th data-sort="rssi_dbm" class="active">RSSI <span class="sort-arrow">&#9660;</span></th>
-            <th data-sort="risk_score">Risk <span class="sort-arrow">&#9660;</span></th>
-          </tr>
-        </thead>
-        <tbody id="device-tbody"></tbody>
-      </table>
-    </div>
-  </section>
-
-  <!-- Presence Timeline -->
-  <section class="panel" id="panel-presence">
-    <div class="panel-head">
-      <span class="panel-title"><span class="icon">👁</span> Presence Timeline</span>
-      <span class="panel-badge" style="background:rgba(0,212,255,.12);color:var(--cyan)" id="event-count">0</span>
-    </div>
-    <div class="panel-body" id="presence-body">
-      <div class="tl-empty" id="presence-empty">No presence events</div>
-      <div class="timeline" id="timeline"></div>
-    </div>
-  </section>
-
-  <!-- Stats Panel -->
+  <!-- Row 1 Col 2: Stats Panel -->
   <section class="panel" id="panel-stats">
     <div class="panel-head">
-      <span class="panel-title"><span class="icon">📊</span> Stats</span>
+      <span class="panel-title"><span class="icon">&#x1F4CA;</span> Stats</span>
     </div>
     <div class="panel-body">
       <div class="stats-grid">
         <div class="stat-card">
-          <span class="stat-label">Total Devices</span>
+          <span class="stat-label">WiFi Devices</span>
           <span class="stat-value cyan" id="stat-total">0</span>
         </div>
         <div class="stat-card">
           <span class="stat-label">Rogue Devices</span>
           <span class="stat-value danger" id="stat-rogue">0</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Bluetooth</span>
+          <span class="stat-value purple" id="stat-bt">0</span>
         </div>
         <div class="stat-card">
           <span class="stat-label">Randomized MACs</span>
@@ -396,6 +476,20 @@ a{color:var(--cyan);text-decoration:none}
         <div class="stat-card">
           <span class="stat-label">Active Zones</span>
           <span class="stat-value" id="stat-zones">0</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Signal Quality</span>
+          <span class="stat-value" id="stat-signal-quality">--</span>
+          <span class="stat-sub" id="stat-signal-avg"></span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">APs Count</span>
+          <span class="stat-value cyan" id="stat-aps">0</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Top Channels</span>
+          <span class="stat-value" id="stat-channels" style="font-size:1rem">--</span>
+          <span class="stat-sub" id="stat-channels-detail"></span>
         </div>
       </div>
       <div class="stat-actions">
@@ -412,6 +506,74 @@ a{color:var(--cyan);text-decoration:none}
       </div>
     </div>
   </section>
+
+  <!-- Row 2: Three equal columns -->
+  <div class="grid-row2">
+
+    <!-- WiFi Device List -->
+    <section class="panel" id="panel-devices">
+      <div class="panel-head">
+        <span class="panel-title"><span class="icon">&#x1F4F6;</span> WiFi Devices</span>
+        <span class="panel-badge" style="background:rgba(0,212,255,.12);color:var(--cyan)" id="device-count">0</span>
+      </div>
+      <div class="panel-body" id="devices-body">
+        <div class="device-empty" id="devices-empty" style="display:none">No devices discovered</div>
+        <table class="device-table" id="device-table" style="display:none">
+          <thead>
+            <tr>
+              <th data-sort="device_type" style="width:30px">Type</th>
+              <th data-sort="mac_address">MAC</th>
+              <th data-sort="ssid">SSID</th>
+              <th data-sort="vendor">Vendor</th>
+              <th data-sort="channel">Ch</th>
+              <th data-sort="bandwidth">Band</th>
+              <th data-sort="rssi_dbm" class="active">RSSI <span class="sort-arrow">&#9660;</span></th>
+              <th data-sort="risk_score">Risk <span class="sort-arrow">&#9660;</span></th>
+              <th data-sort="first_seen">Seen</th>
+            </tr>
+          </thead>
+          <tbody id="device-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Bluetooth Devices -->
+    <section class="panel" id="panel-bluetooth">
+      <div class="panel-head">
+        <span class="panel-title"><span class="icon">&#x1F539;</span> Bluetooth Devices</span>
+        <span class="panel-badge" style="background:rgba(168,85,247,.15);color:var(--purple)" id="bt-count">0</span>
+      </div>
+      <div class="panel-body" id="bt-body">
+        <div class="bt-empty" id="bt-empty" style="display:none">No Bluetooth devices detected</div>
+        <table class="bt-table" id="bt-table" style="display:none">
+          <thead>
+            <tr>
+              <th data-sort="device_type" style="width:40px">Type</th>
+              <th data-sort="device_name">Name</th>
+              <th data-sort="mac_address">MAC</th>
+              <th data-sort="manufacturer">Mfr</th>
+              <th data-sort="rssi_dbm" class="active">RSSI <span class="sort-arrow">&#9660;</span></th>
+              <th data-sort="first_seen">Seen</th>
+            </tr>
+          </thead>
+          <tbody id="bt-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Presence Timeline -->
+    <section class="panel" id="panel-presence">
+      <div class="panel-head">
+        <span class="panel-title"><span class="icon">&#x1F441;</span> Presence Timeline</span>
+        <span class="panel-badge" style="background:rgba(0,212,255,.12);color:var(--cyan)" id="event-count">0</span>
+      </div>
+      <div class="panel-body" id="presence-body">
+        <div class="tl-empty" id="presence-empty" style="display:none">No presence events</div>
+        <div class="timeline" id="timeline"></div>
+      </div>
+    </section>
+
+  </div>
 
 </main>
 
@@ -441,29 +603,32 @@ a{color:var(--cyan);text-decoration:none}
   'use strict';
 
   // ── Configuration ──
-  const API_BASE = '';  // local server
-  const WS_BASE  = 'wss://ep8zonl28l.execute-api.eu-west-2.amazonaws.com/prod';
-  const AUTH_TOKEN = 'mvp-token';
-  const MAX_EVENTS = 500;
-  const MAX_BACKOFF = 30000;
-  const INITIAL_BACKOFF = 1000;
+  var API_BASE = '';
+  var WS_BASE  = 'wss://ep8zonl28l.execute-api.eu-west-2.amazonaws.com/prod';
+  var AUTH_TOKEN = 'mvp-token';
+  var MAX_EVENTS = 500;
+  var MAX_BACKOFF = 30000;
+  var INITIAL_BACKOFF = 1000;
 
   // ── State ──
-  const state = {
+  var state = {
     sessionId: null,
     sessionName: null,
     devices: [],
+    bluetoothDevices: [],
     events: [],
     mapData: null,
     wsConnected: false,
     sortField: 'rssi_dbm',
     sortAsc: false,
-    pollTimer: null,
+    btSortField: 'rssi_dbm',
+    btSortAsc: false,
+    pollTimer: null
   };
 
   // ── DOM refs ──
-  const $ = (id) => document.getElementById(id);
-  const dom = {
+  function $(id) { return document.getElementById(id); }
+  var dom = {
     sessionLabel: $('session-label'),
     wsDot: $('ws-dot'),
     wsText: $('ws-status-text'),
@@ -472,18 +637,38 @@ a{color:var(--cyan);text-decoration:none}
     mapBody: $('map-body'),
     mapEmpty: $('map-empty'),
     mapConfidence: $('map-confidence'),
+    mapMetrics: $('map-metrics'),
+    metricMinRssi: $('metric-min-rssi'),
+    metricMaxRssi: $('metric-max-rssi'),
+    metricAvgRssi: $('metric-avg-rssi'),
+    metricCoverage: $('metric-coverage'),
+    metricAps: $('metric-aps'),
+    metricWalls: $('metric-walls'),
+    metricWallConf: $('metric-wall-conf'),
+    metricGrid: $('metric-grid'),
+    metricQuality: $('metric-quality'),
     deviceCount: $('device-count'),
     deviceTable: $('device-table'),
     deviceTbody: $('device-tbody'),
     devicesEmpty: $('devices-empty'),
+    btCount: $('bt-count'),
+    btTable: $('bt-table'),
+    btTbody: $('bt-tbody'),
+    btEmpty: $('bt-empty'),
     eventCount: $('event-count'),
     presenceEmpty: $('presence-empty'),
     presenceBody: $('presence-body'),
     timeline: $('timeline'),
     statTotal: $('stat-total'),
     statRogue: $('stat-rogue'),
+    statBt: $('stat-bt'),
     statRandom: $('stat-random'),
     statZones: $('stat-zones'),
+    statSignalQuality: $('stat-signal-quality'),
+    statSignalAvg: $('stat-signal-avg'),
+    statAps: $('stat-aps'),
+    statChannels: $('stat-channels'),
+    statChannelsDetail: $('stat-channels-detail'),
     statWsDot: $('stat-ws-dot'),
     statWsText: $('stat-ws-text'),
     sessionSelect: $('session-select'),
@@ -493,34 +678,34 @@ a{color:var(--cyan);text-decoration:none}
     sessionNameInput: $('session-name-input'),
     btnModalCancel: $('btn-modal-cancel'),
     btnModalJoin: $('btn-modal-join'),
-    btnModalCreate: $('btn-modal-create'),
+    btnModalCreate: $('btn-modal-create')
   };
 
   // ── API ──
-  async function apiRequest(method, path, body) {
-    const opts = {
-      method,
+  function apiRequest(method, path, body) {
+    var opts = {
+      method: method,
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + AUTH_TOKEN,
-      },
+        'Authorization': 'Bearer ' + AUTH_TOKEN
+      }
     };
     if (body) opts.body = JSON.stringify(body);
-    try {
-      const resp = await fetch(API_BASE + path, opts);
+    return fetch(API_BASE + path, opts).then(function(resp) {
       if (!resp.ok) {
-        const text = await resp.text();
-        console.error('API error:', resp.status, text);
-        return null;
+        return resp.text().then(function(text) {
+          console.error('API error:', resp.status, text);
+          return null;
+        });
       }
-      return await resp.json();
-    } catch (e) {
+      return resp.json();
+    }).catch(function(e) {
       console.error('API fetch error:', e);
       return null;
-    }
+    });
   }
 
-  // ── Data helpers ── parse DynamoDB response quirks
+  // ── Data helpers ──
   function parseIfString(val) {
     if (typeof val === 'string') { try { return JSON.parse(val); } catch(e) { return val; } }
     return val;
@@ -530,6 +715,19 @@ a{color:var(--cyan);text-decoration:none}
     d.rssi_dbm = parseInt(d.rssi_dbm) || -100;
     d.channel = parseInt(d.channel) || 0;
     d.mac = d.mac_address || d.mac || '';
+    d.ssid = d.ssid || '-';
+    d.bandwidth = d.bandwidth || '2.4GHz';
+    d.first_seen = d.first_seen || '';
+    d.last_seen = d.last_seen || '';
+    return d;
+  }
+  function fixBtDevice(d) {
+    d.rssi_dbm = parseInt(d.rssi_dbm) || -100;
+    d.device_name = d.device_name || 'Unknown';
+    d.device_type = d.device_type || 'BLE';
+    d.manufacturer = d.manufacturer || 'Unknown';
+    d.first_seen = d.first_seen || '';
+    d.last_seen = d.last_seen || '';
     return d;
   }
   function fixMapItem(item) {
@@ -540,33 +738,33 @@ a{color:var(--cyan);text-decoration:none}
     return item;
   }
 
-  async function createSession(name) {
-    return await apiRequest('POST', '/api/sessions', { name });
+  function createSession(name) {
+    return apiRequest('POST', '/api/sessions', { name: name });
   }
 
-  async function fetchMap(sessionId) {
-    return await apiRequest('GET', '/api/map/' + sessionId);
+  function fetchMap(sessionId) {
+    return apiRequest('GET', '/api/map/' + sessionId);
   }
 
-  async function fetchDevices(sessionId) {
-    return await apiRequest('GET', '/api/devices/' + sessionId);
+  function fetchDevices(sessionId) {
+    return apiRequest('GET', '/api/devices/' + sessionId);
   }
 
-  async function fetchPresence(sessionId) {
-    return await apiRequest('GET', '/api/presence/' + sessionId);
+  function fetchPresence(sessionId) {
+    return apiRequest('GET', '/api/presence/' + sessionId);
   }
 
   // ── WebSocket ──
-  let ws = null;
-  let wsBackoff = INITIAL_BACKOFF;
-  let wsReconnectTimer = null;
-  let wsIntentionallyClosed = false;
+  var ws = null;
+  var wsBackoff = INITIAL_BACKOFF;
+  var wsReconnectTimer = null;
+  var wsIntentionallyClosed = false;
 
   function connectWebSocket() {
     wsIntentionallyClosed = false;
     cleanupWs();
 
-    const url = WS_BASE + '?token=' + encodeURIComponent(AUTH_TOKEN);
+    var url = WS_BASE + '?token=' + encodeURIComponent(AUTH_TOKEN);
     try {
       ws = new WebSocket(url);
     } catch (e) {
@@ -584,7 +782,7 @@ a{color:var(--cyan);text-decoration:none}
 
     ws.onmessage = function(evt) {
       try {
-        const msg = JSON.parse(evt.data);
+        var msg = JSON.parse(evt.data);
         handleWsMessage(msg);
       } catch (_) {}
     };
@@ -624,7 +822,7 @@ a{color:var(--cyan);text-decoration:none}
 
   function wsSend(action, payload) {
     if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ action, ...payload }));
+      ws.send(JSON.stringify({ action: action, ...payload }));
     }
   }
 
@@ -634,10 +832,16 @@ a{color:var(--cyan);text-decoration:none}
       case 'map_update':
         state.mapData = msg.data;
         renderMap();
+        updateMapMetrics();
         break;
       case 'device_update':
         upsertDevice(msg.data);
         renderDevices();
+        updateStats();
+        break;
+      case 'bt_device_update':
+        upsertBtDevice(msg.data);
+        renderBluetooth();
         updateStats();
         break;
       case 'presence_event':
@@ -650,8 +854,8 @@ a{color:var(--cyan);text-decoration:none}
 
   function setWsStatus(connected) {
     state.wsConnected = connected;
-    const cls = connected ? 'status-dot live' : 'status-dot dead';
-    const txt = connected ? 'Connected' : 'Disconnected';
+    var cls = connected ? 'status-dot live' : 'status-dot dead';
+    var txt = connected ? 'Connected' : 'Disconnected';
     dom.wsDot.className = cls;
     dom.wsText.textContent = txt;
     dom.statWsDot.className = cls;
@@ -660,11 +864,20 @@ a{color:var(--cyan);text-decoration:none}
 
   // ── Data helpers ──
   function upsertDevice(device) {
-    const idx = state.devices.findIndex(d => d.mac_address === device.mac_address);
+    var idx = state.devices.findIndex(function(d) { return d.mac_address === device.mac_address; });
     if (idx >= 0) {
       state.devices[idx] = device;
     } else {
       state.devices.push(device);
+    }
+  }
+
+  function upsertBtDevice(device) {
+    var idx = state.bluetoothDevices.findIndex(function(d) { return d.mac_address === device.mac_address; });
+    if (idx >= 0) {
+      state.bluetoothDevices[idx] = device;
+    } else {
+      state.bluetoothDevices.push(device);
     }
   }
 
@@ -674,70 +887,74 @@ a{color:var(--cyan);text-decoration:none}
   }
 
   function updateTimestamp() {
-    const now = new Date();
+    var now = new Date();
     dom.lastUpdate.textContent = now.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' });
   }
 
   // ── Render: Signal Map ──
-  let mapCtx = null;
-  let mapResizeObserver = null;
+  var mapCtx = null;
+  var mapResizeObserver = null;
+
+  function resizeMapCanvas() {
+    var wrapper = dom.mapCanvas.parentElement;
+    var rect = wrapper.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+    dom.mapCanvas.width = rect.width * window.devicePixelRatio;
+    dom.mapCanvas.height = rect.height * window.devicePixelRatio;
+    dom.mapCanvas.style.width = rect.width + 'px';
+    dom.mapCanvas.style.height = rect.height + 'px';
+    mapCtx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+    renderMap();
+  }
 
   function initMapCanvas() {
     mapCtx = dom.mapCanvas.getContext('2d');
+    var wrapper = dom.mapCanvas.parentElement;
     mapResizeObserver = new ResizeObserver(function() {
-      const rect = dom.mapBody.getBoundingClientRect();
-      dom.mapCanvas.width = rect.width * window.devicePixelRatio;
-      dom.mapCanvas.height = rect.height * window.devicePixelRatio;
-      dom.mapCanvas.style.width = rect.width + 'px';
-      dom.mapCanvas.style.height = rect.height + 'px';
-      mapCtx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
-      renderMap();
+      resizeMapCanvas();
     });
-    mapResizeObserver.observe(dom.mapBody);
+    mapResizeObserver.observe(wrapper);
   }
 
   function dbmToColor(dbm) {
-    // -30 = strong (green) ... -60 = yellow ... -90 = weak (red)
-    const t = Math.max(0, Math.min(1, (dbm + 90) / 60)); // 0=red, 1=green
-    let r, g, b;
+    var t = Math.max(0, Math.min(1, (dbm + 90) / 60));
+    var r, g, b;
     if (t < 0.5) {
-      // red to yellow
-      const p = t / 0.5;
+      var p = t / 0.5;
       r = 255;
       g = Math.round(165 + 90 * p);
       b = Math.round(87 * (1 - p));
     } else {
-      // yellow to green
-      const p = (t - 0.5) / 0.5;
-      r = Math.round(255 * (1 - p));
-      g = Math.round(165 + 48 * p);
-      b = Math.round(87 * p + 28);
+      var p2 = (t - 0.5) / 0.5;
+      r = Math.round(255 * (1 - p2));
+      g = Math.round(165 + 48 * p2);
+      b = Math.round(87 * p2 + 28);
     }
-    return { r, g, b };
+    return { r: r, g: g, b: b };
   }
 
   function bilinearInterpolate(grid, rows, cols) {
-    const srcR = grid.length;
-    const srcC = grid[0] ? grid[0].length : 0;
+    var srcR = grid.length;
+    var srcC = grid[0] ? grid[0].length : 0;
     if (srcR === 0 || srcC === 0) return [];
-    const result = [];
-    for (let i = 0; i < rows; i++) {
-      const row = [];
-      const srcY = (i / Math.max(rows - 1, 1)) * (srcR - 1);
-      const y0 = Math.floor(srcY);
-      const y1 = Math.min(y0 + 1, srcR - 1);
-      const fy = srcY - y0;
-      for (let j = 0; j < cols; j++) {
-        const srcX = (j / Math.max(cols - 1, 1)) * (srcC - 1);
-        const x0 = Math.floor(srcX);
-        const x1 = Math.min(x0 + 1, srcC - 1);
-        const fx = srcX - x0;
-        const tl = grid[y0][x0];
-        const tr = grid[y0][x1];
-        const bl = grid[y1][x0];
-        const br = grid[y1][x1];
-        const top = tl + (tr - tl) * fx;
-        const bot = bl + (br - bl) * fx;
+    var result = [];
+    for (var i = 0; i < rows; i++) {
+      var row = [];
+      var srcY = (i / Math.max(rows - 1, 1)) * (srcR - 1);
+      var y0 = Math.floor(srcY);
+      var y1 = Math.min(y0 + 1, srcR - 1);
+      var fy = srcY - y0;
+      for (var j = 0; j < cols; j++) {
+        var srcX = (j / Math.max(cols - 1, 1)) * (srcC - 1);
+        var x0 = Math.floor(srcX);
+        var x1 = Math.min(x0 + 1, srcC - 1);
+        var fx = srcX - x0;
+        var tl = grid[y0][x0];
+        var tr = grid[y0][x1];
+        var bl = grid[y1][x0];
+        var br = grid[y1][x1];
+        var top = tl + (tr - tl) * fx;
+        var bot = bl + (br - bl) * fx;
         row.push(top + (bot - top) * fy);
       }
       result.push(row);
@@ -747,35 +964,35 @@ a{color:var(--cyan);text-decoration:none}
 
   function renderMap() {
     if (!mapCtx) return;
-    const w = dom.mapCanvas.width / window.devicePixelRatio;
-    const h = dom.mapCanvas.height / window.devicePixelRatio;
+    var w = dom.mapCanvas.width / window.devicePixelRatio;
+    var h = dom.mapCanvas.height / window.devicePixelRatio;
     mapCtx.clearRect(0, 0, w, h);
 
-    const md = state.mapData;
+    var md = state.mapData;
     if (!md || !md.heatmap || md.heatmap.length === 0) {
       dom.mapEmpty.style.display = 'flex';
+      dom.mapMetrics.style.display = 'none';
       return;
     }
     dom.mapEmpty.style.display = 'none';
+    dom.mapMetrics.style.display = 'flex';
 
-    // Confidence badge
     if (md.confidence != null) {
       dom.mapConfidence.textContent = Math.round(md.confidence * 100) + '% conf';
     }
 
-    // Interpolate heatmap to canvas resolution
-    const targetRows = Math.min(Math.max(md.heatmap.length * 3, 30), 80);
-    const targetCols = Math.min(Math.max((md.heatmap[0] || []).length * 3, 30), 80);
-    const grid = bilinearInterpolate(md.heatmap, targetRows, targetCols);
+    var targetRows = Math.min(Math.max(md.heatmap.length * 3, 30), 80);
+    var targetCols = Math.min(Math.max((md.heatmap[0] || []).length * 3, 30), 80);
+    var grid = bilinearInterpolate(md.heatmap, targetRows, targetCols);
 
-    const cellW = w / targetCols;
-    const cellH = h / targetRows;
+    var cellW = w / targetCols;
+    var cellH = h / targetRows;
 
-    for (let r = 0; r < targetRows; r++) {
-      for (let c = 0; c < targetCols; c++) {
-        const dbm = grid[r][c];
-        const color = dbmToColor(dbm);
-        const alpha = Math.max(0.15, Math.min(0.85, (dbm + 100) / 70));
+    for (var r = 0; r < targetRows; r++) {
+      for (var c = 0; c < targetCols; c++) {
+        var dbm = grid[r][c];
+        var color = dbmToColor(dbm);
+        var alpha = Math.max(0.15, Math.min(0.85, (dbm + 100) / 70));
         mapCtx.fillStyle = 'rgba(' + color.r + ',' + color.g + ',' + color.b + ',' + alpha.toFixed(2) + ')';
         mapCtx.fillRect(c * cellW, r * cellH, cellW + 0.5, cellH + 0.5);
       }
@@ -783,17 +1000,18 @@ a{color:var(--cyan);text-decoration:none}
 
     // Draw walls
     if (md.walls && md.walls.length > 0 && md.grid_bounds) {
-      const gb = md.grid_bounds;
-      const scaleX = w / (gb.x_max - gb.x_min || 1);
-      const scaleY = h / (gb.y_max - gb.y_min || 1);
+      var gb = md.grid_bounds;
+      var scaleX = w / (gb.x_max - gb.x_min || 1);
+      var scaleY = h / (gb.y_max - gb.y_min || 1);
       mapCtx.strokeStyle = 'rgba(255,255,255,0.5)';
       mapCtx.lineWidth = 2;
       mapCtx.setLineDash([6, 4]);
-      for (const wall of md.walls) {
-        const x1 = (wall.start[0] - gb.x_min) * scaleX;
-        const y1 = (wall.start[1] - gb.y_min) * scaleY;
-        const x2 = (wall.end[0] - gb.x_min) * scaleX;
-        const y2 = (wall.end[1] - gb.y_min) * scaleY;
+      for (var wi = 0; wi < md.walls.length; wi++) {
+        var wall = md.walls[wi];
+        var x1 = (wall.start[0] - gb.x_min) * scaleX;
+        var y1 = (wall.start[1] - gb.y_min) * scaleY;
+        var x2 = (wall.end[0] - gb.x_min) * scaleX;
+        var y2 = (wall.end[1] - gb.y_min) * scaleY;
         mapCtx.globalAlpha = 0.3 + wall.confidence * 0.7;
         mapCtx.beginPath();
         mapCtx.moveTo(x1, y1);
@@ -806,20 +1024,19 @@ a{color:var(--cyan);text-decoration:none}
 
     // Draw positions
     if (md.positions && md.positions.length > 0 && md.grid_bounds) {
-      const gb = md.grid_bounds;
-      const scaleX = w / (gb.x_max - gb.x_min || 1);
-      const scaleY = h / (gb.y_max - gb.y_min || 1);
-      for (const pos of md.positions) {
-        const px = (pos.x - gb.x_min) * scaleX;
-        const py = (pos.y - gb.y_min) * scaleY;
+      var gb2 = md.grid_bounds;
+      var sX = w / (gb2.x_max - gb2.x_min || 1);
+      var sY = h / (gb2.y_max - gb2.y_min || 1);
+      for (var pi = 0; pi < md.positions.length; pi++) {
+        var pos = md.positions[pi];
+        var px = (pos.x - gb2.x_min) * sX;
+        var py = (pos.y - gb2.y_min) * sY;
 
-        // Outer glow
         mapCtx.beginPath();
         mapCtx.arc(px, py, 10, 0, Math.PI * 2);
         mapCtx.fillStyle = 'rgba(0,212,255,0.15)';
         mapCtx.fill();
 
-        // Inner dot
         mapCtx.beginPath();
         mapCtx.arc(px, py, 4, 0, Math.PI * 2);
         mapCtx.fillStyle = '#00d4ff';
@@ -828,7 +1045,6 @@ a{color:var(--cyan);text-decoration:none}
         mapCtx.lineWidth = 1.5;
         mapCtx.stroke();
 
-        // Label
         if (pos.label) {
           mapCtx.font = '10px ' + getComputedStyle(document.body).getPropertyValue('--font-mono');
           mapCtx.fillStyle = '#e8eaed';
@@ -838,21 +1054,99 @@ a{color:var(--cyan);text-decoration:none}
       }
     }
 
-    // Scanline overlay effect
+    // Scanline overlay
     mapCtx.fillStyle = 'rgba(0,212,255,0.015)';
-    for (let y = 0; y < h; y += 3) {
-      mapCtx.fillRect(0, y, w, 1);
+    for (var sy = 0; sy < h; sy += 3) {
+      mapCtx.fillRect(0, sy, w, 1);
     }
+
+    updateMapMetrics();
   }
 
-  // ── Render: Devices ──
-  const DEVICE_ICONS = { phone: '\uD83D\uDCF1', laptop: '\uD83D\uDCBB', iot: '\uD83C\uDFE0', ap: '\uD83D\uDCE1', unknown: '\u2753' };
+  // ── Signal Map Metrics ──
+  function updateMapMetrics() {
+    var md = state.mapData;
+    if (!md || !md.heatmap || md.heatmap.length === 0) return;
+
+    var flat = [];
+    for (var ri = 0; ri < md.heatmap.length; ri++) {
+      for (var ci = 0; ci < md.heatmap[ri].length; ci++) {
+        flat.push(md.heatmap[ri][ci]);
+      }
+    }
+
+    var minRssi = Math.min.apply(null, flat);
+    var maxRssi = Math.max.apply(null, flat);
+    var sumRssi = 0;
+    var coverageCount = 0;
+    for (var fi = 0; fi < flat.length; fi++) {
+      sumRssi += flat[fi];
+      if (flat[fi] > -80) coverageCount++;
+    }
+    var avgRssi = flat.length > 0 ? sumRssi / flat.length : 0;
+    var coveragePct = flat.length > 0 ? (coverageCount / flat.length) * 100 : 0;
+
+    dom.metricMinRssi.textContent = minRssi + ' dBm';
+    dom.metricMaxRssi.textContent = maxRssi + ' dBm';
+    dom.metricAvgRssi.textContent = Math.round(avgRssi) + ' dBm';
+
+    // Coverage color
+    var covEl = dom.metricCoverage;
+    covEl.textContent = Math.round(coveragePct) + '%';
+    covEl.className = 'metric-value ' + (coveragePct >= 70 ? 'good' : coveragePct >= 40 ? 'ok' : 'bad');
+
+    // APs detected
+    var apCount = state.devices.filter(function(d) { return d.device_type === 'ap'; }).length;
+    dom.metricAps.textContent = apCount;
+
+    // Walls
+    var wallCount = (md.walls && md.walls.length) || 0;
+    dom.metricWalls.textContent = wallCount;
+
+    // Wall confidence
+    if (md.walls && md.walls.length > 0) {
+      var wallConfSum = 0;
+      for (var wci = 0; wci < md.walls.length; wci++) {
+        wallConfSum += md.walls[wci].confidence || 0;
+      }
+      var avgWallConf = wallConfSum / md.walls.length;
+      dom.metricWallConf.textContent = Math.round(avgWallConf * 100) + '%';
+    } else {
+      dom.metricWallConf.textContent = '--';
+    }
+
+    // Grid
+    dom.metricGrid.textContent = md.heatmap.length + ' x ' + (md.heatmap[0] ? md.heatmap[0].length : 0);
+
+    // Signal quality
+    var qualEl = dom.metricQuality;
+    var qualLabel;
+    if (avgRssi >= -50) { qualLabel = 'Excellent'; qualEl.className = 'metric-value good'; }
+    else if (avgRssi >= -60) { qualLabel = 'Good'; qualEl.className = 'metric-value good'; }
+    else if (avgRssi >= -70) { qualLabel = 'Fair'; qualEl.className = 'metric-value ok'; }
+    else if (avgRssi >= -80) { qualLabel = 'Weak'; qualEl.className = 'metric-value ok'; }
+    else { qualLabel = 'Poor'; qualEl.className = 'metric-value bad'; }
+    qualEl.textContent = qualLabel;
+  }
+
+  // ── Render: WiFi Devices ──
+  var DEVICE_ICONS = { phone: '\uD83D\uDCF1', laptop: '\uD83D\uDCBB', iot: '\uD83C\uDFE0', ap: '\uD83D\uDCE1', unknown: '\u2753' };
+
+  function formatTimeShort(iso) {
+    if (!iso) return '--';
+    try {
+      var d = new Date(iso);
+      if (isNaN(d.getTime())) return '--';
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch (_) { return '--'; }
+  }
 
   function renderDevices() {
-    const sorted = [...state.devices].sort((a, b) => {
-      const va = a[state.sortField], vb = b[state.sortField];
-      if (typeof va === 'string') return state.sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
-      return state.sortAsc ? va - vb : vb - va;
+    var sorted = state.devices.slice().sort(function(a, b) {
+      var va = a[state.sortField], vb = b[state.sortField];
+      if (typeof va === 'string' && typeof vb === 'string') return state.sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+      var na = parseFloat(va) || 0, nb = parseFloat(vb) || 0;
+      return state.sortAsc ? na - nb : nb - na;
     });
 
     dom.deviceCount.textContent = sorted.length;
@@ -863,49 +1157,74 @@ a{color:var(--cyan);text-decoration:none}
       return;
     }
     dom.devicesEmpty.style.display = 'none';
-    dom.deviceTable.style.display = '';
+    dom.deviceTable.style.display = 'table';
 
-    const fragment = document.createDocumentFragment();
-    for (const d of sorted) {
-      const tr = document.createElement('tr');
-      const isNew = d._new;
-      if (isNew) { tr.className = 'highlight'; delete d._new; }
+    var fragment = document.createDocumentFragment();
+    for (var i = 0; i < sorted.length; i++) {
+      var d = sorted[i];
+      var tr = document.createElement('tr');
+      if (d._new) { tr.className = 'highlight'; delete d._new; }
 
       // Type
-      const tdType = document.createElement('td');
+      var tdType = document.createElement('td');
       tdType.className = 'type-icon';
       tdType.textContent = DEVICE_ICONS[d.device_type] || DEVICE_ICONS.unknown;
       tr.appendChild(tdType);
 
       // MAC
-      const tdMac = document.createElement('td');
+      var tdMac = document.createElement('td');
       tdMac.className = 'mac-cell';
       tdMac.textContent = d.mac_address;
       if (d.is_randomized_mac) {
-        const span = document.createElement('span');
+        var span = document.createElement('span');
         span.className = 'mac-rand';
         span.textContent = 'R';
         tdMac.appendChild(span);
       }
       tr.appendChild(tdMac);
 
+      // SSID
+      var tdSsid = document.createElement('td');
+      tdSsid.className = 'ssid-cell';
+      tdSsid.textContent = d.ssid || '-';
+      tdSsid.title = d.ssid || '-';
+      tr.appendChild(tdSsid);
+
       // Vendor
-      const tdVendor = document.createElement('td');
+      var tdVendor = document.createElement('td');
       tdVendor.className = 'vendor-cell';
       tdVendor.textContent = d.vendor || 'Unknown';
       tdVendor.title = d.vendor || 'Unknown';
       tr.appendChild(tdVendor);
 
+      // Channel
+      var tdCh = document.createElement('td');
+      tdCh.className = 'channel-cell';
+      tdCh.textContent = d.channel || '--';
+      tr.appendChild(tdCh);
+
+      // Bandwidth
+      var tdBand = document.createElement('td');
+      tdBand.className = 'band-cell';
+      if (d.bandwidth === '5GHz') {
+        tdBand.classList.add('band-5');
+        tdBand.textContent = '5G';
+      } else {
+        tdBand.classList.add('band-24');
+        tdBand.textContent = '2.4G';
+      }
+      tr.appendChild(tdBand);
+
       // RSSI
-      const tdRssi = document.createElement('td');
+      var tdRssi = document.createElement('td');
       tdRssi.className = 'rssi-cell';
-      const rssiText = document.createTextNode(d.rssi_dbm + ' ');
+      var rssiText = document.createTextNode(d.rssi_dbm + ' ');
       tdRssi.appendChild(rssiText);
-      const bar = document.createElement('span');
+      var bar = document.createElement('span');
       bar.className = 'rssi-bar';
-      const fill = document.createElement('span');
+      var fill = document.createElement('span');
       fill.className = 'rssi-bar-fill';
-      const pct = Math.max(0, Math.min(100, ((d.rssi_dbm + 100) / 70) * 100));
+      var pct = Math.max(0, Math.min(100, ((d.rssi_dbm + 100) / 70) * 100));
       fill.style.width = pct + '%';
       fill.style.backgroundColor = d.rssi_dbm >= -50 ? '#2ed573' : d.rssi_dbm >= -70 ? '#ffa502' : '#ff4757';
       bar.appendChild(fill);
@@ -913,14 +1232,21 @@ a{color:var(--cyan);text-decoration:none}
       tr.appendChild(tdRssi);
 
       // Risk
-      const tdRisk = document.createElement('td');
-      const badge = document.createElement('span');
+      var tdRisk = document.createElement('td');
+      var badge = document.createElement('span');
       badge.className = 'risk-badge ';
-      if (d.risk_score >= 0.6) { badge.className += 'risk-high'; badge.textContent = 'HIGH ' + d.risk_score.toFixed(2); }
-      else if (d.risk_score >= 0.3) { badge.className += 'risk-med'; badge.textContent = 'MED ' + d.risk_score.toFixed(2); }
-      else { badge.className += 'risk-low'; badge.textContent = 'LOW ' + d.risk_score.toFixed(2); }
+      if (d.risk_score >= 0.6) { badge.className += 'risk-high'; badge.textContent = 'HIGH'; }
+      else if (d.risk_score >= 0.3) { badge.className += 'risk-med'; badge.textContent = 'MED'; }
+      else { badge.className += 'risk-low'; badge.textContent = 'LOW'; }
       tdRisk.appendChild(badge);
       tr.appendChild(tdRisk);
+
+      // Seen (first/last)
+      var tdSeen = document.createElement('td');
+      tdSeen.className = 'time-cell';
+      tdSeen.textContent = formatTimeShort(d.first_seen) + ' / ' + formatTimeShort(d.last_seen);
+      tdSeen.title = 'First: ' + (d.first_seen || '--') + '\nLast: ' + (d.last_seen || '--');
+      tr.appendChild(tdSeen);
 
       fragment.appendChild(tr);
     }
@@ -928,38 +1254,143 @@ a{color:var(--cyan);text-decoration:none}
     dom.deviceTbody.appendChild(fragment);
   }
 
-  // Sort headers
-  document.querySelectorAll('.device-table th[data-sort]').forEach(function(th) {
+  // Sort headers for WiFi devices
+  document.querySelectorAll('#device-table th[data-sort]').forEach(function(th) {
     th.addEventListener('click', function() {
-      const field = th.getAttribute('data-sort');
+      var field = th.getAttribute('data-sort');
       if (state.sortField === field) {
         state.sortAsc = !state.sortAsc;
       } else {
         state.sortField = field;
-        state.sortAsc = field === 'risk_score' || field === 'rssi_dbm' ? false : true;
+        state.sortAsc = (field === 'risk_score' || field === 'rssi_dbm') ? false : true;
       }
-      document.querySelectorAll('.device-table th').forEach(function(t) { t.classList.remove('active'); });
+      document.querySelectorAll('#device-table th').forEach(function(t) { t.classList.remove('active'); });
       th.classList.add('active');
-      const arrow = th.querySelector('.sort-arrow');
+      var arrow = th.querySelector('.sort-arrow');
       if (arrow) arrow.innerHTML = state.sortAsc ? '&#9650;' : '&#9660;';
       renderDevices();
     });
   });
 
+  // ── Render: Bluetooth Devices ──
+  var BT_TYPE_ICONS = { BLE: '\uD83D\uDD39', Classic: '\uD83D\uDD35', Beacon: '\uD83D\uDCE1' };
+
+  function renderBluetooth() {
+    var sorted = state.bluetoothDevices.slice().sort(function(a, b) {
+      var va = a[state.btSortField], vb = b[state.btSortField];
+      if (typeof va === 'string' && typeof vb === 'string') return state.btSortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+      var na = parseFloat(va) || 0, nb = parseFloat(vb) || 0;
+      return state.btSortAsc ? na - nb : nb - na;
+    });
+
+    dom.btCount.textContent = sorted.length;
+
+    if (sorted.length === 0) {
+      dom.btEmpty.style.display = 'flex';
+      dom.btTable.style.display = 'none';
+      return;
+    }
+    dom.btEmpty.style.display = 'none';
+    dom.btTable.style.display = 'table';
+
+    var fragment = document.createDocumentFragment();
+    for (var i = 0; i < sorted.length; i++) {
+      var d = sorted[i];
+      var tr = document.createElement('tr');
+
+      // Type badge
+      var tdType = document.createElement('td');
+      var typeBadge = document.createElement('span');
+      typeBadge.className = 'bt-type-badge ';
+      var dtLower = (d.device_type || '').toLowerCase();
+      if (dtLower === 'ble') { typeBadge.className += 'bt-type-ble'; typeBadge.textContent = 'BLE'; }
+      else if (dtLower === 'classic') { typeBadge.className += 'bt-type-classic'; typeBadge.textContent = 'BT'; }
+      else if (dtLower === 'beacon') { typeBadge.className += 'bt-type-beacon'; typeBadge.textContent = 'BCN'; }
+      else { typeBadge.className += 'bt-type-ble'; typeBadge.textContent = d.device_type; }
+      tdType.appendChild(typeBadge);
+      tr.appendChild(tdType);
+
+      // Name
+      var tdName = document.createElement('td');
+      tdName.className = 'bt-name-cell';
+      tdName.textContent = d.device_name;
+      tdName.title = d.device_name;
+      tr.appendChild(tdName);
+
+      // MAC
+      var tdMac = document.createElement('td');
+      tdMac.className = 'mac-cell';
+      tdMac.textContent = d.mac_address;
+      tr.appendChild(tdMac);
+
+      // Manufacturer
+      var tdMfr = document.createElement('td');
+      tdMfr.className = 'bt-mfr-cell';
+      tdMfr.textContent = d.manufacturer;
+      tdMfr.title = d.manufacturer;
+      tr.appendChild(tdMfr);
+
+      // RSSI with bar
+      var tdRssi = document.createElement('td');
+      tdRssi.className = 'rssi-cell';
+      var rssiText = document.createTextNode(d.rssi_dbm + ' ');
+      tdRssi.appendChild(rssiText);
+      var bar = document.createElement('span');
+      bar.className = 'rssi-bar';
+      var fill = document.createElement('span');
+      fill.className = 'rssi-bar-fill';
+      var pct = Math.max(0, Math.min(100, ((d.rssi_dbm + 100) / 70) * 100));
+      fill.style.width = pct + '%';
+      fill.style.backgroundColor = d.rssi_dbm >= -50 ? '#2ed573' : d.rssi_dbm >= -70 ? '#ffa502' : '#ff4757';
+      bar.appendChild(fill);
+      tdRssi.appendChild(bar);
+      tr.appendChild(tdRssi);
+
+      // Seen
+      var tdSeen = document.createElement('td');
+      tdSeen.className = 'time-cell';
+      tdSeen.textContent = formatTimeShort(d.first_seen) + ' / ' + formatTimeShort(d.last_seen);
+      tdSeen.title = 'First: ' + (d.first_seen || '--') + '\nLast: ' + (d.last_seen || '--');
+      tr.appendChild(tdSeen);
+
+      fragment.appendChild(tr);
+    }
+    dom.btTbody.innerHTML = '';
+    dom.btTbody.appendChild(fragment);
+  }
+
+  // Sort headers for Bluetooth devices
+  document.querySelectorAll('#bt-table th[data-sort]').forEach(function(th) {
+    th.addEventListener('click', function() {
+      var field = th.getAttribute('data-sort');
+      if (state.btSortField === field) {
+        state.btSortAsc = !state.btSortAsc;
+      } else {
+        state.btSortField = field;
+        state.btSortAsc = (field === 'rssi_dbm') ? false : true;
+      }
+      document.querySelectorAll('#bt-table th').forEach(function(t) { t.classList.remove('active'); });
+      th.classList.add('active');
+      var arrow = th.querySelector('.sort-arrow');
+      if (arrow) arrow.innerHTML = state.btSortAsc ? '&#9650;' : '&#9660;';
+      renderBluetooth();
+    });
+  });
+
   // ── Render: Timeline ──
-  const EVENT_COLORS = { entry: '#2ed573', exit: '#ff4757', moving: '#00d4ff', stationary: '#8892a4', empty: '#1e2a3a' };
-  const EVENT_LABELS = { entry: 'Entry', exit: 'Exit', moving: 'Moving', stationary: 'Stationary', empty: 'Empty' };
+  var EVENT_COLORS = { entry: '#2ed573', exit: '#ff4757', moving: '#00d4ff', stationary: '#8892a4', empty: '#1e2a3a' };
+  var EVENT_LABELS = { entry: 'Entry', exit: 'Exit', moving: 'Moving', stationary: 'Stationary', empty: 'Empty' };
 
   function formatTime(iso) {
     try {
-      const d = new Date(iso);
+      var d = new Date(iso);
       if (isNaN(d.getTime())) return iso;
       return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     } catch (_) { return iso; }
   }
 
   function renderTimeline() {
-    const events = state.events;
+    var events = state.events;
     dom.eventCount.textContent = events.length;
 
     if (events.length === 0) {
@@ -968,54 +1399,52 @@ a{color:var(--cyan);text-decoration:none}
       return;
     }
     dom.presenceEmpty.style.display = 'none';
-    dom.timeline.style.display = '';
+    dom.timeline.style.display = 'block';
 
-    const fragment = document.createDocumentFragment();
-    for (let i = 0; i < events.length; i++) {
-      const evt = events[i];
-      const isLast = i === events.length - 1;
-      const color = EVENT_COLORS[evt.event_type] || '#8892a4';
+    var fragment = document.createDocumentFragment();
+    for (var i = 0; i < events.length; i++) {
+      var evt = events[i];
+      var isLast = i === events.length - 1;
+      var color = EVENT_COLORS[evt.event_type] || '#8892a4';
 
-      const item = document.createElement('div');
+      var item = document.createElement('div');
       item.className = 'tl-item' + (evt._new ? ' new' : '');
       if (evt._new) delete evt._new;
 
-      // Track
-      const track = document.createElement('div');
+      var track = document.createElement('div');
       track.className = 'tl-track';
-      const dot = document.createElement('div');
+      var dot = document.createElement('div');
       dot.className = 'tl-dot';
       dot.style.backgroundColor = color;
       track.appendChild(dot);
       if (!isLast) {
-        const line = document.createElement('div');
+        var line = document.createElement('div');
         line.className = 'tl-line';
         track.appendChild(line);
       }
       item.appendChild(track);
 
-      // Content
-      const content = document.createElement('div');
+      var content = document.createElement('div');
       content.className = 'tl-content';
-      const row = document.createElement('div');
+      var row = document.createElement('div');
       row.className = 'tl-row';
-      const typeSpan = document.createElement('span');
+      var typeSpan = document.createElement('span');
       typeSpan.className = 'tl-type';
       typeSpan.style.color = color;
       typeSpan.textContent = EVENT_LABELS[evt.event_type] || evt.event_type;
       row.appendChild(typeSpan);
-      const timeSpan = document.createElement('span');
+      var timeSpan = document.createElement('span');
       timeSpan.className = 'tl-time';
       timeSpan.textContent = formatTime(evt.timestamp);
       row.appendChild(timeSpan);
       content.appendChild(row);
 
-      const zone = document.createElement('div');
+      var zone = document.createElement('div');
       zone.className = 'tl-zone';
       zone.textContent = evt.zone || '--';
       content.appendChild(zone);
 
-      const conf = document.createElement('div');
+      var conf = document.createElement('div');
       conf.className = 'tl-conf';
       conf.textContent = 'Confidence: ' + Math.round((evt.confidence || 0) * 100) + '%';
       if (evt.device_count != null) conf.textContent += '  |  Devices: ' + evt.device_count;
@@ -1027,26 +1456,98 @@ a{color:var(--cyan);text-decoration:none}
     dom.timeline.innerHTML = '';
     dom.timeline.appendChild(fragment);
 
-    // Auto-scroll to top (newest)
     dom.presenceBody.scrollTop = 0;
   }
 
   // ── Render: Stats ──
   function updateStats() {
-    const devices = state.devices;
-    dom.statTotal.textContent = devices.length;
-    dom.statRogue.textContent = devices.filter(d => d.risk_score >= 0.6).length;
-    dom.statRandom.textContent = devices.filter(d => d.is_randomized_mac).length;
+    var devices = state.devices;
+    var btDevices = state.bluetoothDevices;
 
-    const zones = new Set();
-    for (const d of devices) { if (d.zone) zones.add(d.zone); }
-    for (const e of state.events) { if (e.zone) zones.add(e.zone); }
-    dom.statZones.textContent = zones.size;
+    // WiFi devices
+    dom.statTotal.textContent = devices.length;
+
+    // Rogue
+    var rogueCount = 0;
+    for (var ri = 0; ri < devices.length; ri++) {
+      if (devices[ri].risk_score >= 0.6) rogueCount++;
+    }
+    dom.statRogue.textContent = rogueCount;
+
+    // Bluetooth
+    dom.statBt.textContent = btDevices.length;
+
+    // Randomized MACs
+    var randCount = 0;
+    for (var rmi = 0; rmi < devices.length; rmi++) {
+      if (devices[rmi].is_randomized_mac) randCount++;
+    }
+    dom.statRandom.textContent = randCount;
+
+    // Active zones
+    var zones = {};
+    for (var di = 0; di < devices.length; di++) { if (devices[di].zone) zones[devices[di].zone] = true; }
+    for (var ei = 0; ei < state.events.length; ei++) { if (state.events[ei].zone) zones[state.events[ei].zone] = true; }
+    dom.statZones.textContent = Object.keys(zones).length;
+
+    // Signal quality (average RSSI across all WiFi devices)
+    if (devices.length > 0) {
+      var rssiSum = 0;
+      for (var si = 0; si < devices.length; si++) {
+        rssiSum += devices[si].rssi_dbm;
+      }
+      var avgDevRssi = rssiSum / devices.length;
+      var qualLabel, qualClass;
+      if (avgDevRssi >= -50) { qualLabel = 'Excellent'; qualClass = 'success'; }
+      else if (avgDevRssi >= -60) { qualLabel = 'Good'; qualClass = 'success'; }
+      else if (avgDevRssi >= -70) { qualLabel = 'Fair'; qualClass = 'warn'; }
+      else if (avgDevRssi >= -80) { qualLabel = 'Weak'; qualClass = 'warn'; }
+      else { qualLabel = 'Poor'; qualClass = 'danger'; }
+      dom.statSignalQuality.textContent = qualLabel;
+      dom.statSignalQuality.className = 'stat-value ' + qualClass;
+      dom.statSignalAvg.textContent = Math.round(avgDevRssi) + ' dBm avg';
+    } else {
+      dom.statSignalQuality.textContent = '--';
+      dom.statSignalQuality.className = 'stat-value';
+      dom.statSignalAvg.textContent = '';
+    }
+
+    // AP count
+    var apCount = 0;
+    for (var api = 0; api < devices.length; api++) {
+      if (devices[api].device_type === 'ap') apCount++;
+    }
+    dom.statAps.textContent = apCount;
+
+    // Channel distribution (top channels)
+    var channelMap = {};
+    for (var chi = 0; chi < devices.length; chi++) {
+      var ch = devices[chi].channel;
+      if (ch && ch > 0) {
+        channelMap[ch] = (channelMap[ch] || 0) + 1;
+      }
+    }
+    var channelEntries = [];
+    for (var chKey in channelMap) {
+      if (channelMap.hasOwnProperty(chKey)) {
+        channelEntries.push({ ch: chKey, count: channelMap[chKey] });
+      }
+    }
+    channelEntries.sort(function(a, b) { return b.count - a.count; });
+
+    if (channelEntries.length > 0) {
+      var topChannels = channelEntries.slice(0, 3).map(function(e) { return 'Ch' + e.ch; });
+      dom.statChannels.textContent = topChannels.join(', ');
+      var detail = channelEntries.slice(0, 3).map(function(e) { return e.ch + '(' + e.count + ')'; });
+      dom.statChannelsDetail.textContent = detail.join(' ');
+    } else {
+      dom.statChannels.textContent = '--';
+      dom.statChannelsDetail.textContent = '';
+    }
   }
 
   // ── Session Management ──
   function setSession(sessionId, name) {
-    // Unsubscribe from previous
     if (state.sessionId && ws && ws.readyState === WebSocket.OPEN) {
       wsSend('unsubscribe', { session_id: state.sessionId });
     }
@@ -1054,25 +1555,24 @@ a{color:var(--cyan);text-decoration:none}
     state.sessionId = sessionId;
     state.sessionName = name || sessionId;
     state.devices = [];
+    state.bluetoothDevices = [];
     state.events = [];
     state.mapData = null;
 
     dom.sessionLabel.textContent = name || sessionId || 'No session';
 
-    // Render empty
     renderMap();
     renderDevices();
+    renderBluetooth();
     renderTimeline();
     updateStats();
 
     if (!sessionId) return;
 
-    // Subscribe via WebSocket
     if (ws && ws.readyState === WebSocket.OPEN) {
       wsSend('subscribe', { session_id: sessionId });
     }
 
-    // Fetch initial data
     fetchMap(sessionId).then(function(data) {
       if (data) {
         if (data.heatmap) {
@@ -1109,18 +1609,39 @@ a{color:var(--cyan);text-decoration:none}
       }
     });
 
-    // Auto-refresh every 5 seconds (poll until WebSocket is streaming)
     if (state.pollTimer) clearInterval(state.pollTimer);
     state.pollTimer = setInterval(function() {
-      if (state.sessionId) setSession(state.sessionId, state.sessionName);
-    }, 5000);
+      if (state.sessionId) {
+        fetchDevices(state.sessionId).then(function(data) {
+          if (data) {
+            state.devices = (data.devices || data.data || []).map(fixDevice);
+            renderDevices();
+            updateStats();
+            updateTimestamp();
+          }
+        });
+        fetchPresence(state.sessionId).then(function(data) {
+          if (data) {
+            var evts = (data.events || data.data || []).map(function(e) {
+              e.confidence = parseFloat(e.confidence) || 0;
+              e.device_count = parseInt(e.device_count) || 0;
+              return e;
+            });
+            evts.sort(function(a, b) { return new Date(b.timestamp) - new Date(a.timestamp); });
+            state.events = evts.slice(0, MAX_EVENTS);
+            renderTimeline();
+            updateStats();
+            updateTimestamp();
+          }
+        });
+      }
+    }, 10000);
   }
 
-  // Session select
   dom.sessionSelect.addEventListener('change', function() {
-    const val = this.value;
+    var val = this.value;
     if (val) {
-      const opt = this.options[this.selectedIndex];
+      var opt = this.options[this.selectedIndex];
       setSession(val, opt.textContent);
     }
   });
@@ -1148,16 +1669,16 @@ a{color:var(--cyan);text-decoration:none}
   });
 
   dom.btnModalJoin.addEventListener('click', function() {
-    const val = dom.modalSessionSelect.value;
+    var val = dom.modalSessionSelect.value;
     if (val) {
-      const opt = dom.modalSessionSelect.options[dom.modalSessionSelect.selectedIndex];
+      var opt = dom.modalSessionSelect.options[dom.modalSessionSelect.selectedIndex];
       setSession(val, opt.textContent);
       closeModal();
     }
   });
 
-  dom.btnModalCreate.addEventListener('click', async function() {
-    const name = dom.sessionNameInput.value.trim();
+  dom.btnModalCreate.addEventListener('click', function() {
+    var name = dom.sessionNameInput.value.trim();
     if (!name) {
       dom.sessionNameInput.style.borderColor = '#ff4757';
       dom.sessionNameInput.focus();
@@ -1166,26 +1687,26 @@ a{color:var(--cyan);text-decoration:none}
     dom.btnModalCreate.disabled = true;
     dom.btnModalCreate.textContent = 'Creating...';
 
-    const result = await createSession(name);
-    dom.btnModalCreate.disabled = false;
-    dom.btnModalCreate.textContent = 'Create';
+    createSession(name).then(function(result) {
+      dom.btnModalCreate.disabled = false;
+      dom.btnModalCreate.textContent = 'Create';
 
-    if (result && result.session_id) {
-      const sid = result.session_id;
-      const sname = (result.session && result.session.name) || name;
-      // Add to dropdowns
-      addSessionOption(sid, sname);
-      setSession(sid, sname);
-      closeModal();
-    } else if (result && result.session && result.session.session_id) {
-      const sid = result.session.session_id;
-      const sname = result.session.name || name;
-      addSessionOption(sid, sname);
-      setSession(sid, sname);
-      closeModal();
-    } else {
-      dom.sessionNameInput.style.borderColor = '#ff4757';
-    }
+      if (result && result.session_id) {
+        var sid = result.session_id;
+        var sname = (result.session && result.session.name) || name;
+        addSessionOption(sid, sname);
+        setSession(sid, sname);
+        closeModal();
+      } else if (result && result.session && result.session.session_id) {
+        var sid2 = result.session.session_id;
+        var sname2 = result.session.name || name;
+        addSessionOption(sid2, sname2);
+        setSession(sid2, sname2);
+        closeModal();
+      } else {
+        dom.sessionNameInput.style.borderColor = '#ff4757';
+      }
+    });
   });
 
   dom.sessionNameInput.addEventListener('input', function() {
@@ -1197,17 +1718,15 @@ a{color:var(--cyan);text-decoration:none}
   });
 
   function addSessionOption(id, name) {
-    // Add to both selects if not already present
     [dom.sessionSelect, dom.modalSessionSelect].forEach(function(sel) {
-      for (let i = 0; i < sel.options.length; i++) {
+      for (var i = 0; i < sel.options.length; i++) {
         if (sel.options[i].value === id) return;
       }
-      const opt = document.createElement('option');
+      var opt = document.createElement('option');
       opt.value = id;
       opt.textContent = name;
       sel.appendChild(opt);
     });
-    // Select in main dropdown
     dom.sessionSelect.value = id;
   }
 
@@ -1228,7 +1747,6 @@ a{color:var(--cyan);text-decoration:none}
     initMapCanvas();
     setWsStatus(false);
 
-    // Load data directly from static JSON file (no API calls needed)
     fetch('data.json').then(function(r) { return r.json(); }).then(function(data) {
       console.log('Loaded data.json:', data);
 
@@ -1237,9 +1755,13 @@ a{color:var(--cyan);text-decoration:none}
       state.sessionName = data.session.name;
       dom.sessionLabel.textContent = data.session.name;
 
-      // Devices
+      // WiFi Devices
       state.devices = (data.devices || []).map(fixDevice);
       renderDevices();
+
+      // Bluetooth Devices
+      state.bluetoothDevices = (data.bluetooth_devices || []).map(fixBtDevice);
+      renderBluetooth();
 
       // Events
       state.events = (data.events || []).map(function(e) {
@@ -1253,7 +1775,11 @@ a{color:var(--cyan);text-decoration:none}
       // Map
       if (data.map) {
         state.mapData = data.map;
-        renderMap();
+        if (mapCtx) {
+          resizeMapCanvas();
+        } else {
+          renderMap();
+        }
       }
 
       updateStats();
