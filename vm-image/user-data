@@ -3,12 +3,18 @@
 hostname: 5map-edge
 manage_etc_hosts: true
 
+ssh_pwauth: true
+chpasswd:
+  expire: false
+
 users:
   - name: ossiem
     sudo: ALL=(ALL) NOPASSWD:ALL
     shell: /bin/bash
     lock_passwd: false
-    passwd: $6$rounds=4096$saltsalt$YbCM7xBdNMo0GNkmPOlVSwfDTqg3PVgzapHIpbNFfqF6oRCTHrGcUH7nKZwsI2JhTtJDf6l7fthnXdMCVgJxk1
+    plain_text_passwd: ossiem
+    ssh_authorized_keys:
+      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCU1b2GjNsLHgFNUw19tKbkGRHpllvk9vy1uO6lMvTvHxq3fuDoImHEK9LCk6FF1TGLzJwCj9YG1KEp9qDeDZ1uWFGoLt/I5uLcIEKmB2pT8ZO1TXdRZIVnuBoWuQt5deEz4GUeBueWmC1gy2fFIULLIL8UHItUBCtQ/kLD85/66UCkXn43rfFhafkgcTy93UntLXSrA7zYi++tuHf+Ui7XH0/nIMppS4dOL3xFVfWqfWOexQ7wUYcqifl7fG4YK9TwJmUW84ZXarGDYN65m+AtLBEduCEPof6q7f3qMBTFftUdJFo+97Dn/KfJH+3X/XgVltoFzCzfe5SGYIAHOvG8JLdLXj0Y44+v4p6mmL4dKWAsywF6cXFvoXhkdYSi1o2O7l6/FGk4DUfbTgv1Qp4iysP53KDOIhvMN1Czi+j5X+zhYY/Y3r9T3S+yW9Is2FSpJaM6LlU5qUldDsx+6emT4bkrowGPM41h/RM4qhMuweVitIho4nn+Wd9iuBf0w0k= ossiem@workstation
 
 packages:
   - python3
