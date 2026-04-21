@@ -28,7 +28,7 @@ apt-get install -y -qq python3 python3-pip python3-venv git mosquitto-clients \
 
 # Install Python packages
 echo "[5map] Installing Python packages..."
-pip3 install --break-system-packages scapy paho-mqtt pyyaml pydantic numpy scikit-learn boto3 2>&1 | tail -5
+pip3 install --break-system-packages scapy paho-mqtt pyyaml pydantic numpy scikit-learn boto3 pyserial 2>&1 | tail -5
 
 # Clone 5map repo
 echo "[5map] Cloning 5map..."
@@ -100,6 +100,12 @@ transport:
     private_key: private.pem.key
   queue_max_size: 1000
 
+esp32:
+  port: auto
+  baud: 921600
+  ble_window_seconds: 2
+  csi_window_seconds: 1
+
 logging:
   level: INFO
   file: /var/log/5map-agent.log
@@ -118,69 +124,59 @@ raspi-config nonint do_serial_cons 1
 # Set hostname
 hostnamectl set-hostname 5map-edge
 
-# Enable the service (don't start yet - needs certs)
+# Enable the RSSI capture service (don't start yet - needs certs)
 systemctl daemon-reload
 systemctl enable 5map-edge.service
+
+# Create ESP32 BLE+CSI bridge service
+cat > /etc/systemd/system/5map-esp32.service << 'ESP32SVC'
+[Unit]
+Description=5map ESP32 BLE + CSI Bridge
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/5map/esp32_bridge.py --config /etc/5map/config.yaml --dashboard-data /opt/5map/dashboard/data.json
+Restart=always
+RestartSec=5
+User=root
+WorkingDirectory=/opt/5map
+
+[Install]
+WantedBy=multi-user.target
+ESP32SVC
+
+systemctl enable 5map-esp32.service
 
 # Create ESP32 flash helper script
 cat > /usr/local/bin/5map-flash-esp32 << 'FLASH'
 #!/bin/bash
-# Flash ESP32 with CSI firmware via USB
+# Flash ESP32 with 5map BLE+CSI firmware via USB
 set -e
 PORT="${1:-/dev/ttyUSB0}"
-echo "[5map] Flashing ESP32 CSI firmware on $PORT..."
+echo "[5map] Flashing ESP32 BLE+CSI firmware on $PORT..."
 source /opt/esp/esp-idf/export.sh
-cd /opt/esp-csi/examples/get-started/csi_recv
-idf.py -p "$PORT" flash monitor
+cd /opt/5map/esp32
+idf.py -p "$PORT" build flash
+echo "[5map] Flash complete. Monitor with: idf.py -p $PORT monitor"
 FLASH
 chmod +x /usr/local/bin/5map-flash-esp32
 
-# Create ESP32 CSI receiver script
-cat > /opt/5map/esp32_csi_bridge.py << 'BRIDGE'
-#!/usr/bin/env python3
-"""Bridge ESP32 CSI serial data to the 5map pipeline."""
-import json
-import logging
-import serial
-import time
-import sys
-
-logger = logging.getLogger("5map-csi-bridge")
-
-def read_csi_from_serial(port="/dev/ttyUSB0", baud=921600):
-    """Read CSI data from ESP32 over serial."""
-    ser = serial.Serial(port, baud, timeout=1)
-    logger.info("Connected to ESP32 on %s", port)
-
-    while True:
-        try:
-            line = ser.readline().decode("utf-8", errors="ignore").strip()
-            if line.startswith("CSI_DATA"):
-                parts = line.split(",")
-                if len(parts) >= 10:
-                    yield {
-                        "type": "csi",
-                        "mac": parts[2],
-                        "rssi": int(parts[3]),
-                        "channel": int(parts[4]),
-                        "timestamp": time.time(),
-                        "csi_raw": parts[6:],
-                    }
-        except serial.SerialException as e:
-            logger.error("Serial error: %s", e)
-            time.sleep(1)
-        except KeyboardInterrupt:
-            break
-
-    ser.close()
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    port = sys.argv[1] if len(sys.argv) > 1 else "/dev/ttyUSB0"
-    for frame in read_csi_from_serial(port):
-        print(json.dumps(frame))
-BRIDGE
-chmod +x /opt/5map/esp32_csi_bridge.py
+# Create ESP32 detect helper
+cat > /usr/local/bin/5map-detect-esp32 << 'DETECT'
+#!/bin/bash
+# Detect ESP32 on USB serial
+echo "[5map] Scanning for ESP32..."
+for port in /dev/ttyUSB0 /dev/ttyUSB1 /dev/ttyACM0 /dev/ttyACM1; do
+    if [ -e "$port" ]; then
+        echo "  Found: $port"
+        udevadm info --name="$port" 2>/dev/null | grep -E "ID_VENDOR|ID_MODEL|ID_SERIAL" || true
+    fi
+done
+echo "[5map] Done."
+DETECT
+chmod +x /usr/local/bin/5map-detect-esp32
 
 # Remove this script from running again
 rm -f /etc/5map-firstboot.sh

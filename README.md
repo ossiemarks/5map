@@ -381,6 +381,82 @@ pytest tests/ -v
 - **Active Zones** = number of distinct zones with activity
 - **WebSocket dot** = green when real-time updates are flowing, red when polling
 
+## Visual Indicators Dashboard
+
+A dedicated signal intelligence page (`dashboard/visual-indicators.html`) providing rich real-time visual representations of WiFi and Bluetooth RF data.
+
+```bash
+cd dashboard && python3 -m http.server 8080
+# Open http://localhost:8080/visual-indicators.html
+```
+
+Navigate between dashboards using the header nav links.
+
+### Device Radar (top-left, wide)
+- Polar/radar display with all WiFi + Bluetooth devices positioned by estimated distance from the Pineapple
+- Distance estimated using log-distance path loss model: `d = 10^((TxPower - RSSI) / (10 * n))`, n=2.7 indoor
+- Concentric rings at 1m, 3m, 5m, 10m, 15m
+- Devices grouped by band: 2.4GHz top-right quadrant, 5GHz top-left, Bluetooth bottom half
+- Color by risk score: green (low), amber (medium), red (high)
+- Size by device type: AP largest, phone medium, IoT/unknown smallest
+- Animated cyan radar sweep line (4-second rotation)
+- Hover for device details, click to highlight across all panels
+
+### Signal Strength Gauges (top-right)
+- One 270-degree arc gauge per detected AP
+- Color gradient: red (weak) through amber to green (strong)
+- RSSI mapped to percentage: -30 dBm = 100%, -50 = 70%, -70 = 40%, -90 = 10%
+- Quality labels: Excellent / Good / Fair / Weak / Dead
+- SSID displayed below each gauge ("Hidden" for cloaked networks)
+- Subtle animated glow proportional to signal strength
+
+### Channel Utilization (middle-left)
+- Stacked bar chart showing device count per WiFi channel
+- Color-coded by device type: AP (cyan), Phone (amber), IoT (green), Unknown (gray)
+- Vertical dashed separator between 2.4GHz and 5GHz bands
+- Only channels with active devices are shown
+- Bar opacity increases with congestion
+
+### Bluetooth Proximity Rings (middle-right)
+- Four concentric sonar-style rings with animated ripple effects
+- **Immediate** (green, <1m): RSSI > -50 dBm
+- **Near** (cyan, 1-3m): RSSI -50 to -70 dBm
+- **Far** (amber, 3-10m): RSSI -70 to -85 dBm
+- **Remote** (red, >10m): RSSI < -85 dBm
+- Device names displayed (e.g., "iPhone 15 Pro", "AirPods Pro 2")
+- Solid dot = connectable, dashed border = non-connectable
+
+### Risk Overview (bottom-left)
+- Donut chart with total device count in center
+- Segments: Low (green), Medium (amber), High (red) risk tiers
+- High-risk device cards with pulsing red glow borders showing MAC, SSID, risk score
+- Horizontal risk distribution bar
+
+### ESP32 CSI Preview (bottom-right)
+- Synthetic 64-subcarrier OFDM amplitude waveform (future-ready visualization)
+- Phase rotation gradient strip below
+- Animated oscillation to simulate live CSI data
+- Status badge: "STANDBY - Awaiting Hardware"
+- Will display real CSI data once ESP32 array is connected
+
+### Real-Time Updates
+- **WebSocket**: Connects to `wss://ep8zonl28l.execute-api.eu-west-2.amazonaws.com/prod` for instant push updates
+- **Fallback polling**: 1-second interval from `data.json` when WebSocket is disconnected
+- **Status indicator**: Green "Live" dot when streaming via WebSocket, red "Polling" when falling back
+- **Animation**: All visualizations run at 60fps via `requestAnimationFrame`
+- **Signal jitter**: Adds realistic +/-2 dBm RSSI noise for live feel on static data
+
+### Signal Processing Library
+`dashboard/signal-processing.js` (1505 lines) provides reusable algorithms:
+- RSSI-to-distance estimation (log-distance path loss model)
+- Polar radar plot data generation
+- Signal strength gauge calculations
+- Channel utilization analysis with congestion scoring
+- Bluetooth proximity ring classification
+- Device risk heatmap generation (Gaussian kernel)
+- Signal trend simulation with realistic jitter
+- ESP32 CSI waveform generation (64 OFDM subcarriers)
+
 ## Future Roadmap
 
 - **ESP32 CSI module** - Add 3-4 ESP32s for Channel State Information capture, enabling gesture recognition and centimeter-level positioning
