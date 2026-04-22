@@ -127,11 +127,12 @@ resource "aws_lambda_function" "preprocessor" {
 
   environment {
     variables = {
-      S3_BUCKET               = aws_s3_bucket.data.bucket
-      DYNAMODB_DEVICE_TABLE   = var.dynamodb_device_table
-      DYNAMODB_PRESENCE_TABLE = var.dynamodb_presence_table
-      WEBSOCKET_API_ENDPOINT  = var.websocket_api_endpoint
-      SAGEMAKER_ENDPOINT      = ""
+      S3_BUCKET                = aws_s3_bucket.data.bucket
+      DYNAMODB_DEVICE_TABLE    = var.dynamodb_device_table
+      DYNAMODB_PRESENCE_TABLE  = var.dynamodb_presence_table
+      DYNAMODB_SESSIONS_TABLE  = var.dynamodb_sessions_table
+      WEBSOCKET_API_ENDPOINT   = var.websocket_api_endpoint
+      SAGEMAKER_ENDPOINT       = ""
     }
   }
 

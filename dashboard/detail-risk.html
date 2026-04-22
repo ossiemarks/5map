@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>5map - Risk Assessment Detail</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0e17;--card:#131a2b;--border:#1e2d4a;
+  --cyan:#00d4ff;--danger:#ff4757;--warn:#ffa502;--success:#2ed573;
+  --purple:#a855f7;--blue:#3b82f6;
+  --text:#e8eaed;--muted:#8892a4;--dim:#4a5568;
+  --font-mono:'SF Mono','Fira Code','Cascadia Code',monospace;
+  --font-sans:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+}
+html{font-size:14px}
+body{background:var(--bg);color:var(--text);font-family:var(--font-sans);min-height:100vh}
+a{color:var(--cyan);text-decoration:none}
+
+.header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 24px;height:56px;
+  background:linear-gradient(180deg,#0f1520 0%,var(--bg) 100%);
+  border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;
+}
+.header-left{display:flex;align-items:center;gap:14px}
+.logo{font-size:1.5rem;font-weight:800;letter-spacing:-.02em;font-family:var(--font-mono);color:var(--cyan);display:flex;align-items:center;gap:8px}
+.logo svg{width:28px;height:28px;fill:var(--cyan)}
+.back-link{font-size:.75rem;color:var(--muted);padding:4px 10px;border-radius:6px;border:1px solid transparent;transition:all .15s;display:flex;align-items:center;gap:4px}
+.back-link:hover{color:var(--cyan);background:rgba(0,212,255,.06);border-color:rgba(0,212,255,.15)}
+.page-title{font-size:.82rem;color:var(--muted);font-family:var(--font-mono)}
+.last-update{font-size:.72rem;color:var(--dim);font-family:var(--font-mono)}
+
+.content{padding:12px;display:flex;flex-direction:column;gap:12px}
+
+.top-row{display:grid;grid-template-columns:200px 1fr 1fr;gap:12px}
+@media(max-width:900px){.top-row{grid-template-columns:1fr}}
+
+.panel{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border)}
+.panel-title{font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.panel-badge{font-size:.68rem;font-weight:700;padding:2px 7px;border-radius:10px}
+.panel-body{flex:1;overflow:auto;position:relative;min-height:0;padding:12px}
+
+.donut-panel{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px}
+#risk-donut{display:block;margin-bottom:12px}
+.donut-legend{display:flex;flex-direction:column;gap:6px;width:100%}
+.leg-item{display:flex;align-items:center;gap:8px;font-size:.7rem}
+.leg-swatch{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.leg-label{color:var(--muted);flex:1}
+.leg-count{font-family:var(--font-mono);font-weight:700}
+
+.risk-stat{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:var(--bg);border:1px solid var(--border);border-radius:8px;
+  padding:12px;
+}
+.risk-stat-value{font-size:1.6rem;font-weight:800;font-family:var(--font-mono)}
+.risk-stat-label{font-size:.58rem;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px}
+
+.rogue-card{
+  background:rgba(255,71,87,.06);border:1px solid rgba(255,71,87,.3);
+  border-radius:8px;padding:12px;margin-bottom:8px;
+  animation:glowPulse 3s ease-in-out infinite;
+}
+@keyframes glowPulse{0%,100%{box-shadow:0 0 6px rgba(255,71,87,.15)}50%{box-shadow:0 0 14px rgba(255,71,87,.4)}}
+.rogue-mac{font-family:var(--font-mono);font-size:.72rem;color:var(--danger);margin-bottom:4px}
+.rogue-ssid{font-size:.78rem;font-weight:600;margin-bottom:4px}
+.rogue-detail{font-size:.66rem;color:var(--dim);display:flex;justify-content:space-between;margin-top:2px}
+.rogue-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+
+.risk-table{width:100%;border-collapse:collapse;font-size:.68rem}
+.risk-table th{
+  background:var(--bg);color:var(--dim);font-size:.6rem;
+  text-transform:uppercase;letter-spacing:.06em;font-weight:600;
+  padding:7px 8px;text-align:left;border-bottom:1px solid var(--border);
+  position:sticky;top:0;cursor:pointer;white-space:nowrap;
+}
+.risk-table th:hover{color:var(--cyan)}
+.risk-table td{padding:5px 8px;border-bottom:1px solid rgba(30,45,74,.3);white-space:nowrap}
+.risk-table tr:hover{background:rgba(255,71,87,.04)}
+.risk-table .mac{font-family:var(--font-mono);font-size:.62rem;color:var(--cyan)}
+.risk-bar-cell{min-width:80px}
+.risk-bar-sm{height:5px;border-radius:3px;background:var(--bg);overflow:hidden}
+.risk-bar-sm-fill{height:100%;border-radius:3px}
+
+.analysis-card{
+  background:var(--bg);border:1px solid var(--border);border-radius:8px;
+  padding:12px;margin-bottom:8px;
+}
+.analysis-title{font-size:.7rem;color:var(--warn);font-weight:700;margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em}
+.analysis-text{font-size:.7rem;color:var(--text);line-height:1.5}
+
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+</style>
+</head>
+<body>
+<header class="header">
+  <div class="header-left">
+    <div class="logo">
+      <svg viewBox="0 0 24 24"><path d="M1.29 7.35a15.56 15.56 0 0 1 21.42 0l.6.58-1.42 1.42-.6-.58a13.56 13.56 0 0 0-18.58 0l-.6.58L.69 7.93l.6-.58Zm4.24 4.24a10.44 10.44 0 0 1 12.94 0l.6.5-1.42 1.42-.52-.42a8.44 8.44 0 0 0-10.26 0l-.52.42-1.42-1.42.6-.5Zm4.24 4.24a5.32 5.32 0 0 1 4.46 0l.68.42-1.42 1.42-.38-.24a3.32 3.32 0 0 0-2.22 0l-.38.24-1.42-1.42.68-.42ZM12 18a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Z"/></svg>
+      5map
+    </div>
+    <a href="visual-indicators.html" class="back-link">&#8592; Back</a>
+    <span class="page-title">Risk Assessment</span>
+  </div>
+  <span class="last-update" id="last-update">--:--:--</span>
+</header>
+
+<div class="content">
+  <!-- Top Row: Donut + Stats + Analysis -->
+  <div class="top-row">
+    <!-- Donut -->
+    <section class="panel">
+      <div class="panel-head"><span class="panel-title">Distribution</span></div>
+      <div class="panel-body donut-panel" id="donut-panel"></div>
+    </section>
+
+    <!-- Stats -->
+    <section class="panel">
+      <div class="panel-head"><span class="panel-title">Risk Metrics</span></div>
+      <div class="panel-body">
+        <div class="stats-grid" id="stats-grid"></div>
+      </div>
+    </section>
+
+    <!-- Threat Analysis -->
+    <section class="panel">
+      <div class="panel-head"><span class="panel-title">Threat Analysis</span></div>
+      <div class="panel-body" id="analysis-panel" style="overflow:auto"></div>
+    </section>
+  </div>
+
+  <!-- Rogue AP Cards -->
+  <section class="panel">
+    <div class="panel-head">
+      <span class="panel-title">High Risk / Rogue APs</span>
+      <span class="panel-badge" style="background:rgba(255,71,87,.12);color:var(--danger)" id="rogue-count">--</span>
+    </div>
+    <div class="panel-body">
+      <div class="rogue-grid" id="rogue-grid"></div>
+    </div>
+  </section>
+
+  <!-- Full Device Risk Table -->
+  <section class="panel" style="max-height:500px">
+    <div class="panel-head">
+      <span class="panel-title">All Devices - Risk Scores</span>
+      <span class="panel-badge" style="background:rgba(0,212,255,.12);color:var(--cyan)" id="table-total">--</span>
+    </div>
+    <div class="panel-body" style="overflow:auto;padding:0">
+      <table class="risk-table">
+        <thead>
+          <tr>
+            <th>MAC</th>
+            <th>SSID</th>
+            <th>Vendor</th>
+            <th>Type</th>
+            <th>RSSI</th>
+            <th>Risk Score</th>
+            <th>Risk Bar</th>
+            <th>Randomized MAC</th>
+            <th>Channel</th>
+            <th>Band</th>
+          </tr>
+        </thead>
+        <tbody id="risk-tbody"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<script>
+(function() {
+'use strict';
+
+var COLORS = {
+  bg:'#0a0e17',card:'#131a2b',border:'#1e2d4a',
+  cyan:'#00d4ff',danger:'#ff4757',warn:'#ffa502',success:'#2ed573',
+  purple:'#a855f7',text:'#e8eaed',muted:'#8892a4',dim:'#4a5568'
+};
+
+function dpr() { return window.devicePixelRatio || 1; }
+
+function setupCanvas(c, w, h) {
+  var r = dpr();
+  c.width = w*r; c.height = h*r;
+  c.style.width = w+'px'; c.style.height = h+'px';
+  var ctx = c.getContext('2d');
+  ctx.scale(r,r);
+  return ctx;
+}
+
+function riskColor(s) {
+  s = parseFloat(s) || 0;
+  if (s < 0.3) return COLORS.success;
+  if (s < 0.6) return COLORS.warn;
+  return COLORS.danger;
+}
+
+function riskLabel(s) {
+  s = parseFloat(s) || 0;
+  if (s < 0.3) return 'Low';
+  if (s < 0.6) return 'Medium';
+  return 'High';
+}
+
+function formatTime(ts) {
+  if (!ts) return '--';
+  return new Date(ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+
+function parseData(raw) {
+  function unwrap(v) {
+    if (v === null || v === undefined) return v;
+    if (typeof v !== 'object') return v;
+    if (Array.isArray(v)) return v.map(unwrap);
+    if ('S' in v) return v.S;
+    if ('N' in v) return parseFloat(v.N);
+    if ('BOOL' in v) return v.BOOL;
+    if ('L' in v) return v.L.map(unwrap);
+    if ('M' in v) { var o={}; for(var k in v.M) o[k]=unwrap(v.M[k]); return o; }
+    var o={}; for(var k in v) o[k]=unwrap(v[k]); return o;
+  }
+  return unwrap(raw);
+}
+
+function buildPage(data) {
+  var devices = data.devices || [];
+  devices.forEach(function(d) { d._risk = parseFloat(d.risk_score) || 0; });
+  devices.sort(function(a,b) { return b._risk - a._risk; });
+
+  var low = devices.filter(function(d){ return d._risk < 0.3; });
+  var med = devices.filter(function(d){ return d._risk >= 0.3 && d._risk < 0.6; });
+  var high = devices.filter(function(d){ return d._risk >= 0.6; });
+  var randomized = devices.filter(function(d){ return d.is_randomized_mac; });
+  var unknownVendor = devices.filter(function(d){ return !d.vendor || d.vendor === 'Unknown'; });
+  var hiddenSSID = devices.filter(function(d){ return !d.ssid || d.ssid === '-'; });
+  var avgRisk = devices.length ? devices.reduce(function(s,d){ return s+d._risk; },0)/devices.length : 0;
+
+  // Donut
+  var donutPanel = document.getElementById('donut-panel');
+  donutPanel.innerHTML = '<canvas id="risk-donut" width="140" height="140"></canvas>' +
+    '<div class="donut-legend">' +
+      '<div class="leg-item"><span class="leg-swatch" style="background:' + COLORS.success + '"></span><span class="leg-label">Low (&lt;0.3)</span><span class="leg-count" style="color:' + COLORS.success + '">' + low.length + '</span></div>' +
+      '<div class="leg-item"><span class="leg-swatch" style="background:' + COLORS.warn + '"></span><span class="leg-label">Medium (0.3-0.6)</span><span class="leg-count" style="color:' + COLORS.warn + '">' + med.length + '</span></div>' +
+      '<div class="leg-item"><span class="leg-swatch" style="background:' + COLORS.danger + '"></span><span class="leg-label">High (&gt;0.6)</span><span class="leg-count" style="color:' + COLORS.danger + '">' + high.length + '</span></div>' +
+    '</div>';
+
+  var donut = document.getElementById('risk-donut');
+  var ctx = setupCanvas(donut, 140, 140);
+  var ccx = 70, ccy = 70, r = 50, lineW = 14;
+  var total = devices.length || 1;
+  var segs = [
+    { count: low.length, color: COLORS.success },
+    { count: med.length, color: COLORS.warn },
+    { count: high.length, color: COLORS.danger }
+  ];
+  ctx.clearRect(0,0,140,140);
+  var angle = -Math.PI/2;
+  segs.forEach(function(seg) {
+    var sweep = (seg.count/total) * Math.PI*2;
+    if (sweep < 0.01) return;
+    ctx.beginPath(); ctx.arc(ccx,ccy,r,angle,angle+sweep);
+    ctx.strokeStyle = seg.color; ctx.lineWidth = lineW; ctx.lineCap = 'butt'; ctx.stroke();
+    angle += sweep;
+  });
+  ctx.fillStyle = COLORS.text;
+  ctx.font = 'bold 18px SF Mono, monospace';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(devices.length, ccx, ccy - 4);
+  ctx.font = '10px system-ui';
+  ctx.fillStyle = COLORS.muted;
+  ctx.fillText('devices', ccx, ccy + 10);
+
+  // Stats
+  document.getElementById('stats-grid').innerHTML =
+    '<div class="risk-stat"><div class="risk-stat-value" style="color:' + COLORS.danger + '">' + high.length + '</div><div class="risk-stat-label">High Risk</div></div>' +
+    '<div class="risk-stat"><div class="risk-stat-value" style="color:' + COLORS.warn + '">' + med.length + '</div><div class="risk-stat-label">Medium Risk</div></div>' +
+    '<div class="risk-stat"><div class="risk-stat-value" style="color:' + COLORS.success + '">' + low.length + '</div><div class="risk-stat-label">Low Risk</div></div>' +
+    '<div class="risk-stat"><div class="risk-stat-value">' + (avgRisk*100).toFixed(0) + '%</div><div class="risk-stat-label">Avg Risk</div></div>' +
+    '<div class="risk-stat"><div class="risk-stat-value" style="color:' + COLORS.purple + '">' + randomized.length + '</div><div class="risk-stat-label">Randomized MAC</div></div>' +
+    '<div class="risk-stat"><div class="risk-stat-value" style="color:' + COLORS.warn + '">' + unknownVendor.length + '</div><div class="risk-stat-label">Unknown Vendor</div></div>';
+
+  // Analysis
+  var analysisHtml = '';
+  if (high.length > 0) {
+    analysisHtml += '<div class="analysis-card" style="border-color:rgba(255,71,87,.3)">' +
+      '<div class="analysis-title" style="color:var(--danger)">Rogue AP Detection</div>' +
+      '<div class="analysis-text">' + high.length + ' device(s) flagged as high risk. These may be rogue access points, evil twins, or misconfigured infrastructure. ' +
+      'Vendors detected: ' + high.map(function(d){ return d.vendor || 'Unknown'; }).filter(function(v,i,a){ return a.indexOf(v)===i; }).join(', ') + '.</div></div>';
+  }
+  if (randomized.length > 0) {
+    analysisHtml += '<div class="analysis-card">' +
+      '<div class="analysis-title">Randomized MAC Analysis</div>' +
+      '<div class="analysis-text">' + randomized.length + ' device(s) using randomized MAC addresses. This is common for mobile devices (iOS, Android) to prevent tracking, but can also indicate probe request spoofing.</div></div>';
+  }
+  if (hiddenSSID.length > 0) {
+    analysisHtml += '<div class="analysis-card">' +
+      '<div class="analysis-title">Hidden SSID Networks</div>' +
+      '<div class="analysis-text">' + hiddenSSID.length + ' device(s) broadcasting with hidden SSIDs. Hidden SSIDs do not provide security and may indicate misconfiguration or deliberate obfuscation.</div></div>';
+  }
+  if (unknownVendor.length > 0) {
+    analysisHtml += '<div class="analysis-card">' +
+      '<div class="analysis-title">Unknown Vendor Devices</div>' +
+      '<div class="analysis-text">' + unknownVendor.length + ' device(s) with unresolvable vendor OUI. These could be spoofed MACs, new/unregistered hardware, or custom firmware devices.</div></div>';
+  }
+  if (!analysisHtml) {
+    analysisHtml = '<div class="analysis-card" style="border-color:rgba(46,213,115,.3)"><div class="analysis-title" style="color:var(--success)">Environment Clean</div>' +
+      '<div class="analysis-text">No significant threats detected in the current scan data.</div></div>';
+  }
+  document.getElementById('analysis-panel').innerHTML = analysisHtml;
+
+  // Rogue Cards
+  document.getElementById('rogue-count').textContent = high.length + ' threats';
+  var rogueGrid = document.getElementById('rogue-grid');
+  if (high.length === 0) {
+    rogueGrid.innerHTML = '<div style="color:var(--dim);font-size:.75rem;padding:16px;text-align:center">No high-risk devices detected</div>';
+  } else {
+    rogueGrid.innerHTML = high.map(function(d) {
+      return '<div class="rogue-card">' +
+        '<div class="rogue-mac">' + d.mac_address + '</div>' +
+        '<div class="rogue-ssid">' + ((!d.ssid || d.ssid==='-') ? 'Hidden Network' : d.ssid) + '</div>' +
+        '<div class="rogue-detail"><span>Risk: ' + (d._risk*100).toFixed(0) + '%</span><span>' + (d.vendor || 'Unknown') + '</span></div>' +
+        '<div class="rogue-detail"><span>RSSI: ' + d.rssi_dbm + ' dBm</span><span>Ch: ' + (d.channel || '--') + '</span></div>' +
+        '<div class="rogue-detail"><span>Band: ' + (d.bandwidth || '--') + '</span><span>Type: ' + (d.device_type || 'unknown') + '</span></div>' +
+        '<div class="rogue-detail"><span>Random MAC: ' + (d.is_randomized_mac ? 'Yes' : 'No') + '</span><span>Last: ' + formatTime(d.last_seen) + '</span></div>' +
+        '</div>';
+    }).join('');
+  }
+
+  // Full Table
+  document.getElementById('table-total').textContent = devices.length + ' devices';
+  document.getElementById('risk-tbody').innerHTML = devices.map(function(d) {
+    var rc = riskColor(d._risk);
+    return '<tr>' +
+      '<td class="mac">' + d.mac_address + '</td>' +
+      '<td>' + ((!d.ssid||d.ssid==='-') ? 'Hidden' : d.ssid) + '</td>' +
+      '<td>' + (d.vendor || 'Unknown') + '</td>' +
+      '<td>' + (d.device_type || 'unknown') + '</td>' +
+      '<td style="font-family:var(--font-mono)">' + d.rssi_dbm + '</td>' +
+      '<td style="font-family:var(--font-mono);color:' + rc + ';font-weight:700">' + (d._risk*100).toFixed(0) + '%</td>' +
+      '<td class="risk-bar-cell"><div class="risk-bar-sm"><div class="risk-bar-sm-fill" style="width:' + (d._risk*100) + '%;background:' + rc + '"></div></div></td>' +
+      '<td>' + (d.is_randomized_mac ? '<span style="color:var(--warn)">Yes</span>' : 'No') + '</td>' +
+      '<td>' + (d.channel || '--') + '</td>' +
+      '<td>' + (d.bandwidth || '--') + '</td>' +
+      '</tr>';
+  }).join('');
+}
+
+async function init() {
+  try {
+    var res = await fetch('data.json?_=' + Date.now());
+    var raw = await res.json();
+    buildPage(parseData(raw));
+    document.getElementById('last-update').textContent = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+
+    setInterval(async function() {
+      try {
+        var r = await fetch('data.json?_=' + Date.now());
+        buildPage(parseData(await r.json()));
+        document.getElementById('last-update').textContent = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      } catch(e) {}
+    }, 5000);
+  } catch(e) { console.warn('Failed to load data:', e); }
+}
+
+window.addEventListener('load', init);
+})();
+</script>
+</body>
+</html>

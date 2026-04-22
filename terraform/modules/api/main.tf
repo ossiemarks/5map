@@ -46,6 +46,12 @@ resource "aws_apigatewayv2_route" "get_presence" {
   target    = "integrations/${aws_apigatewayv2_integration.rest.id}"
 }
 
+resource "aws_apigatewayv2_route" "get_sessions" {
+  api_id    = aws_apigatewayv2_api.rest.id
+  route_key = "GET /api/sessions"
+  target    = "integrations/${aws_apigatewayv2_integration.rest.id}"
+}
+
 resource "aws_apigatewayv2_route" "post_sessions" {
   api_id    = aws_apigatewayv2_api.rest.id
   route_key = "POST /api/sessions"

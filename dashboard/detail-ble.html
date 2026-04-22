@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>5map - Bluetooth Detail</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0e17;--card:#131a2b;--border:#1e2d4a;
+  --cyan:#00d4ff;--danger:#ff4757;--warn:#ffa502;--success:#2ed573;
+  --purple:#a855f7;--blue:#3b82f6;
+  --text:#e8eaed;--muted:#8892a4;--dim:#4a5568;
+  --font-mono:'SF Mono','Fira Code','Cascadia Code',monospace;
+  --font-sans:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+}
+html{font-size:14px}
+body{background:var(--bg);color:var(--text);font-family:var(--font-sans);min-height:100vh}
+a{color:var(--cyan);text-decoration:none}
+
+.header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 24px;height:56px;
+  background:linear-gradient(180deg,#0f1520 0%,var(--bg) 100%);
+  border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;
+}
+.header-left{display:flex;align-items:center;gap:14px}
+.logo{font-size:1.5rem;font-weight:800;letter-spacing:-.02em;font-family:var(--font-mono);color:var(--cyan);display:flex;align-items:center;gap:8px}
+.logo svg{width:28px;height:28px;fill:var(--cyan)}
+.back-link{font-size:.75rem;color:var(--muted);padding:4px 10px;border-radius:6px;border:1px solid transparent;transition:all .15s;display:flex;align-items:center;gap:4px}
+.back-link:hover{color:var(--cyan);background:rgba(0,212,255,.06);border-color:rgba(0,212,255,.15)}
+.page-title{font-size:.82rem;color:var(--muted);font-family:var(--font-mono)}
+.last-update{font-size:.72rem;color:var(--dim);font-family:var(--font-mono)}
+
+.content{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px}
+@media(max-width:1000px){.content{grid-template-columns:1fr}}
+.full-width{grid-column:1/-1}
+
+.panel{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border)}
+.panel-title{font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.panel-badge{font-size:.68rem;font-weight:700;padding:2px 7px;border-radius:10px}
+.panel-body{flex:1;overflow:auto;position:relative;min-height:0}
+
+.ble-wrap{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;padding:12px}
+#ble-canvas{display:block}
+
+.stats-bar{display:flex;gap:12px;padding:12px;flex-wrap:wrap}
+.stat-card{
+  background:var(--bg);border:1px solid var(--border);border-radius:8px;
+  padding:10px 14px;flex:1;min-width:100px;
+}
+.stat-card-value{font-size:1.3rem;font-weight:800;font-family:var(--font-mono)}
+.stat-card-label{font-size:.6rem;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+
+.mfr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;padding:12px}
+.mfr-card{
+  background:var(--bg);border:1px solid var(--border);border-radius:8px;
+  padding:10px;text-align:center;
+}
+.mfr-name{font-size:.72rem;color:var(--text);font-weight:600;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mfr-count{font-size:1.1rem;font-weight:800;font-family:var(--font-mono);color:var(--purple)}
+.mfr-pct{font-size:.58rem;color:var(--dim)}
+
+.filter-bar{display:flex;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);align-items:center}
+.filter-search{
+  flex:1;min-width:120px;background:var(--bg);border:1px solid var(--border);
+  border-radius:6px;padding:4px 10px;color:var(--text);font-size:.72rem;
+  font-family:var(--font-mono);outline:none;
+}
+.filter-search:focus{border-color:var(--cyan)}
+
+.ble-table{width:100%;border-collapse:collapse;font-size:.68rem}
+.ble-table th{
+  background:var(--bg);color:var(--dim);font-size:.6rem;
+  text-transform:uppercase;letter-spacing:.06em;font-weight:600;
+  padding:7px 8px;text-align:left;border-bottom:1px solid var(--border);
+  position:sticky;top:0;cursor:pointer;white-space:nowrap;
+}
+.ble-table th:hover{color:var(--cyan)}
+.ble-table td{padding:5px 8px;border-bottom:1px solid rgba(30,45,74,.3);white-space:nowrap}
+.ble-table tr:hover{background:rgba(168,85,247,.04)}
+.ble-table .mac{font-family:var(--font-mono);font-size:.62rem;color:var(--purple)}
+.conn-badge{font-size:.56rem;padding:1px 5px;border-radius:8px;font-weight:600}
+
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+</style>
+</head>
+<body>
+<header class="header">
+  <div class="header-left">
+    <div class="logo">
+      <svg viewBox="0 0 24 24"><path d="M1.29 7.35a15.56 15.56 0 0 1 21.42 0l.6.58-1.42 1.42-.6-.58a13.56 13.56 0 0 0-18.58 0l-.6.58L.69 7.93l.6-.58Zm4.24 4.24a10.44 10.44 0 0 1 12.94 0l.6.5-1.42 1.42-.52-.42a8.44 8.44 0 0 0-10.26 0l-.52.42-1.42-1.42.6-.5Zm4.24 4.24a5.32 5.32 0 0 1 4.46 0l.68.42-1.42 1.42-.38-.24a3.32 3.32 0 0 0-2.22 0l-.38.24-1.42-1.42.68-.42ZM12 18a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Z"/></svg>
+      5map
+    </div>
+    <a href="visual-indicators.html" class="back-link">&#8592; Back</a>
+    <span class="page-title">Bluetooth Proximity</span>
+  </div>
+  <span class="last-update" id="last-update">--:--:--</span>
+</header>
+
+<div class="content">
+  <!-- Proximity Ring Visualization -->
+  <section class="panel" style="min-height:450px">
+    <div class="panel-head">
+      <span class="panel-title">Proximity Rings</span>
+      <span class="panel-badge" style="background:rgba(168,85,247,.12);color:var(--purple)" id="ble-total">--</span>
+    </div>
+    <div class="panel-body">
+      <div class="ble-wrap" id="ble-wrap">
+        <canvas id="ble-canvas"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stats + Manufacturer Breakdown -->
+  <section class="panel" style="min-height:450px">
+    <div class="panel-head">
+      <span class="panel-title">Statistics & Manufacturers</span>
+    </div>
+    <div class="panel-body" style="overflow:auto">
+      <div class="stats-bar" id="stats-bar"></div>
+      <div style="padding:0 12px 6px;font-size:.68rem;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;font-weight:600">Manufacturer Breakdown</div>
+      <div class="mfr-grid" id="mfr-grid"></div>
+    </div>
+  </section>
+
+  <!-- Full BLE Device Table -->
+  <section class="panel full-width" style="max-height:600px">
+    <div class="panel-head">
+      <span class="panel-title">All BLE Devices</span>
+      <span class="panel-badge" style="background:rgba(168,85,247,.12);color:var(--purple)" id="table-count">--</span>
+    </div>
+    <div class="filter-bar">
+      <input type="text" class="filter-search" id="search-input" placeholder="Search MAC, name, manufacturer...">
+    </div>
+    <div class="panel-body" style="overflow:auto;padding:0">
+      <table class="ble-table" id="ble-table">
+        <thead>
+          <tr>
+            <th data-col="mac">MAC</th>
+            <th data-col="name">Name</th>
+            <th data-col="type">Type</th>
+            <th data-col="manufacturer">Manufacturer</th>
+            <th data-col="rssi">RSSI</th>
+            <th data-col="tx_power">TX Power</th>
+            <th data-col="connectable">Connectable</th>
+            <th data-col="services">Services</th>
+            <th data-col="adv_count">Adv Count</th>
+            <th data-col="first_seen">First Seen</th>
+            <th data-col="last_seen">Last Seen</th>
+          </tr>
+        </thead>
+        <tbody id="ble-tbody"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<script>
+(function() {
+'use strict';
+
+var COLORS = {
+  bg:'#0a0e17',card:'#131a2b',border:'#1e2d4a',
+  cyan:'#00d4ff',danger:'#ff4757',warn:'#ffa502',success:'#2ed573',
+  purple:'#a855f7',blue:'#3b82f6',text:'#e8eaed',muted:'#8892a4',dim:'#4a5568'
+};
+
+var bleDevices = [];
+var searchQuery = '';
+var sortCol = 'rssi';
+var sortAsc = false;
+var bleRipplePhase = 0;
+var rafId = null;
+var appData = null;
+
+function dpr() { return window.devicePixelRatio || 1; }
+
+function setupCanvas(c, w, h) {
+  var r = dpr();
+  c.width = w*r; c.height = h*r;
+  c.style.width = w+'px'; c.style.height = h+'px';
+  var ctx = c.getContext('2d');
+  ctx.scale(r,r);
+  return ctx;
+}
+
+function formatTime(ts) {
+  if (!ts) return '--';
+  return new Date(ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+
+function parseData(raw) {
+  function unwrap(v) {
+    if (v === null || v === undefined) return v;
+    if (typeof v !== 'object') return v;
+    if (Array.isArray(v)) return v.map(unwrap);
+    if ('S' in v) return v.S;
+    if ('N' in v) return parseFloat(v.N);
+    if ('BOOL' in v) return v.BOOL;
+    if ('L' in v) return v.L.map(unwrap);
+    if ('M' in v) { var o={}; for(var k in v.M) o[k]=unwrap(v.M[k]); return o; }
+    var o={}; for(var k in v) o[k]=unwrap(v[k]); return o;
+  }
+  return unwrap(raw);
+}
+
+function rssiProximity(rssi) {
+  if (rssi > -50) return { label: 'Immediate', color: COLORS.success, range: '<1m' };
+  if (rssi > -70) return { label: 'Near', color: COLORS.cyan, range: '1-3m' };
+  if (rssi > -85) return { label: 'Far', color: COLORS.warn, range: '3-10m' };
+  return { label: 'Remote', color: COLORS.danger, range: '>10m' };
+}
+
+function getFilteredDevices() {
+  var list = bleDevices;
+  if (searchQuery) {
+    var q = searchQuery.toLowerCase();
+    list = list.filter(function(d) {
+      return (d.mac_address||'').toLowerCase().indexOf(q) >= 0 ||
+             (d.device_name||'').toLowerCase().indexOf(q) >= 0 ||
+             (d.manufacturer||'').toLowerCase().indexOf(q) >= 0;
+    });
+  }
+  list.sort(function(a, b) {
+    var va = a[sortCol], vb = b[sortCol];
+    if (va == null) va = '';
+    if (vb == null) vb = '';
+    if (typeof va === 'string') va = va.toLowerCase();
+    if (typeof vb === 'string') vb = vb.toLowerCase();
+    if (va < vb) return sortAsc ? -1 : 1;
+    if (va > vb) return sortAsc ? 1 : -1;
+    return 0;
+  });
+  return list;
+}
+
+function buildStats() {
+  var total = bleDevices.length;
+  var connectable = bleDevices.filter(function(d){ return d.is_connectable; }).length;
+  var imm = bleDevices.filter(function(d){ return d.rssi_dbm > -50; }).length;
+  var near = bleDevices.filter(function(d){ return d.rssi_dbm > -70 && d.rssi_dbm <= -50; }).length;
+  var far = bleDevices.filter(function(d){ return d.rssi_dbm > -85 && d.rssi_dbm <= -70; }).length;
+  var remote = bleDevices.filter(function(d){ return d.rssi_dbm <= -85; }).length;
+
+  document.getElementById('ble-total').textContent = total + ' devices';
+  document.getElementById('stats-bar').innerHTML =
+    '<div class="stat-card"><div class="stat-card-value" style="color:var(--purple)">' + total + '</div><div class="stat-card-label">Total BLE</div></div>' +
+    '<div class="stat-card"><div class="stat-card-value" style="color:var(--cyan)">' + connectable + '</div><div class="stat-card-label">Connectable</div></div>' +
+    '<div class="stat-card"><div class="stat-card-value" style="color:var(--success)">' + imm + '</div><div class="stat-card-label">Immediate</div></div>' +
+    '<div class="stat-card"><div class="stat-card-value" style="color:var(--cyan)">' + near + '</div><div class="stat-card-label">Near</div></div>' +
+    '<div class="stat-card"><div class="stat-card-value" style="color:var(--warn)">' + far + '</div><div class="stat-card-label">Far</div></div>' +
+    '<div class="stat-card"><div class="stat-card-value" style="color:var(--danger)">' + remote + '</div><div class="stat-card-label">Remote</div></div>';
+
+  // Manufacturer breakdown
+  var mfrs = {};
+  bleDevices.forEach(function(d) {
+    var m = d.manufacturer || 'Unknown';
+    mfrs[m] = (mfrs[m]||0) + 1;
+  });
+  var sorted = Object.keys(mfrs).sort(function(a,b){ return mfrs[b]-mfrs[a]; });
+
+  document.getElementById('mfr-grid').innerHTML = sorted.map(function(m) {
+    var pct = total > 0 ? ((mfrs[m]/total)*100).toFixed(1) : 0;
+    return '<div class="mfr-card"><div class="mfr-name">' + m + '</div><div class="mfr-count">' + mfrs[m] + '</div><div class="mfr-pct">' + pct + '%</div></div>';
+  }).join('');
+}
+
+function renderTable() {
+  var devs = getFilteredDevices();
+  document.getElementById('table-count').textContent = devs.length + ' shown';
+  var tbody = document.getElementById('ble-tbody');
+
+  tbody.innerHTML = devs.map(function(d) {
+    var prox = rssiProximity(d.rssi_dbm);
+    var services = (d.service_uuids || []).join(', ') || '--';
+    var connBadge = d.is_connectable
+      ? '<span class="conn-badge" style="background:rgba(46,213,115,.15);color:var(--success)">Yes</span>'
+      : '<span class="conn-badge" style="background:rgba(74,85,104,.15);color:var(--dim)">No</span>';
+
+    return '<tr>' +
+      '<td class="mac">' + d.mac_address + '</td>' +
+      '<td>' + (d.device_name || '--') + '</td>' +
+      '<td>' + (d.device_type || '--') + '</td>' +
+      '<td>' + (d.manufacturer || 'Unknown') + '</td>' +
+      '<td style="color:' + prox.color + ';font-family:var(--font-mono)">' + d.rssi_dbm + '</td>' +
+      '<td style="font-family:var(--font-mono)">' + (d.tx_power != null ? d.tx_power : '--') + '</td>' +
+      '<td>' + connBadge + '</td>' +
+      '<td style="font-size:.58rem;color:var(--dim);max-width:120px;overflow:hidden;text-overflow:ellipsis">' + services + '</td>' +
+      '<td style="font-family:var(--font-mono)">' + (d.adv_count || '--') + '</td>' +
+      '<td>' + formatTime(d.first_seen) + '</td>' +
+      '<td>' + formatTime(d.last_seen) + '</td>' +
+      '</tr>';
+  }).join('');
+}
+
+// -- BLE Proximity Ring Drawing --
+function drawBLE(canvas, wrap, data, ripple) {
+  var W = wrap.clientWidth - 24;
+  var H = wrap.clientHeight - 24;
+  if (W < 10 || H < 10) return;
+  var size = Math.min(W, H);
+  if (parseInt(canvas.style.width) !== size) setupCanvas(canvas, size, size);
+
+  var ctx = canvas.getContext('2d');
+  var r = dpr();
+  ctx.setTransform(r, 0, 0, r, 0, 0);
+  ctx.clearRect(0, 0, size, size);
+  var cx = size/2, cy = size/2, maxR = size/2-30;
+  ctx.fillStyle = '#080c14'; ctx.fillRect(0,0,size,size);
+
+  var rings = [
+    { label:'Immediate', range:'<1m', color:COLORS.success, rPct:0.22 },
+    { label:'Near', range:'1-3m', color:COLORS.cyan, rPct:0.44 },
+    { label:'Far', range:'3-10m', color:COLORS.warn, rPct:0.70 },
+    { label:'Remote', range:'>10m', color:COLORS.danger, rPct:1.00 }
+  ];
+
+  var bts = (data && data.bluetooth_devices) || [];
+
+  rings.forEach(function(ring, ri) {
+    var rr = ring.rPct * maxR;
+    var rippleR = rr + ((ripple + ri * 0.3) % 1) * 14;
+    var rippleAlpha = 1 - ((ripple + ri * 0.3) % 1);
+    ctx.beginPath(); ctx.arc(cx,cy,rippleR,0,Math.PI*2);
+    ctx.strokeStyle = ring.color + Math.round(rippleAlpha*30).toString(16).padStart(2,'0');
+    ctx.lineWidth = 1; ctx.stroke();
+
+    ctx.beginPath(); ctx.arc(cx,cy,rr,0,Math.PI*2);
+    ctx.strokeStyle = ring.color + '44'; ctx.lineWidth = 1.5; ctx.stroke();
+
+    ctx.fillStyle = ring.color + '88';
+    ctx.font = (8.5/r*dpr()) + 'px system-ui';
+    ctx.textAlign = 'left';
+    ctx.fillText(ring.label + ' ' + ring.range, cx + rr*Math.cos(-0.3)+3, cy + rr*Math.sin(-0.3));
+  });
+
+  function getDeviceRing(rssi) {
+    if (rssi > -50) return 0;
+    if (rssi > -70) return 1;
+    if (rssi > -85) return 2;
+    return 3;
+  }
+
+  var ringDevices = [[],[],[],[]];
+  bts.forEach(function(d){ ringDevices[getDeviceRing(d.rssi_dbm)].push(d); });
+
+  ringDevices.forEach(function(devs, ri) {
+    var ring = rings[ri];
+    var rr = ring.rPct * maxR;
+    devs.forEach(function(d, di) {
+      var angle = (di / Math.max(devs.length,1)) * Math.PI*2 - Math.PI/2;
+      var x = cx + Math.cos(angle)*rr, y = cy + Math.sin(angle)*rr;
+      ctx.beginPath(); ctx.arc(x,y,5,0,Math.PI*2);
+      if (d.is_connectable) {
+        ctx.fillStyle = ring.color; ctx.fill();
+      } else {
+        ctx.strokeStyle = ring.color+'aa'; ctx.lineWidth=1.5;
+        ctx.setLineDash([3,2]); ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle = ring.color+'55'; ctx.fill();
+      }
+      var name = d.device_name || 'Unknown';
+      ctx.font = (7/r*dpr()) + 'px system-ui';
+      ctx.fillStyle = COLORS.muted;
+      ctx.textAlign = x < cx ? 'right' : 'left';
+      ctx.fillText(name.length > 10 ? name.slice(0,10)+'...' : name, x<cx?x-8:x+8, y+3);
+    });
+  });
+}
+
+function frame() {
+  rafId = requestAnimationFrame(frame);
+  bleRipplePhase = (bleRipplePhase + 0.004) % 1;
+  if (!appData) return;
+  var canvas = document.getElementById('ble-canvas');
+  var wrap = document.getElementById('ble-wrap');
+  if (canvas && wrap) drawBLE(canvas, wrap, appData, bleRipplePhase);
+}
+
+// Events
+document.getElementById('search-input').addEventListener('input', function(e) {
+  searchQuery = e.target.value;
+  renderTable();
+});
+
+document.querySelectorAll('.ble-table th').forEach(function(th) {
+  th.addEventListener('click', function() {
+    var col = th.dataset.col;
+    if (sortCol === col) sortAsc = !sortAsc;
+    else { sortCol = col; sortAsc = true; }
+    renderTable();
+  });
+});
+
+async function init() {
+  try {
+    var res = await fetch('data.json?_=' + Date.now());
+    var raw = await res.json();
+    appData = parseData(raw);
+    bleDevices = appData.bluetooth_devices || [];
+    buildStats();
+    renderTable();
+    requestAnimationFrame(frame);
+    document.getElementById('last-update').textContent = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+
+    setInterval(async function() {
+      try {
+        var r = await fetch('data.json?_=' + Date.now());
+        appData = parseData(await r.json());
+        bleDevices = appData.bluetooth_devices || [];
+        buildStats();
+        renderTable();
+        document.getElementById('last-update').textContent = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      } catch(e) {}
+    }, 3000);
+  } catch(e) { console.warn('Failed to load data:', e); }
+}
+
+window.addEventListener('load', init);
+window.addEventListener('unload', function(){ if(rafId) cancelAnimationFrame(rafId); });
+})();
+</script>
+</body>
+</html>

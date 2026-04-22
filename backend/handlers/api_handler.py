@@ -2,7 +2,9 @@
 
 import json
 import os
+import re
 import uuid
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any
 
@@ -102,22 +104,55 @@ def get_presence(event: dict[str, Any]) -> dict[str, Any]:
         return _response(500, {"error": f"Failed to query presence events: {str(e)}"})
 
 
+def list_sessions(event: dict[str, Any]) -> dict[str, Any]:
+    """GET /api/sessions - List all audit sessions."""
+    table = dynamodb.Table(SESSIONS_TABLE)
+    try:
+        result = table.scan()
+        sessions = result.get("Items", [])
+        sessions.sort(key=lambda s: s.get("created_at", ""), reverse=True)
+        return _response(200, {"sessions": sessions})
+    except Exception as e:
+        return _response(500, {"error": f"Failed to list sessions: {str(e)}"})
+
+
 def create_session(event: dict[str, Any]) -> dict[str, Any]:
-    """POST /api/sessions - Create a new audit session."""
+    """POST /api/sessions - Create or join an audit session.
+
+    Accepts optional session_id in body for idempotent creation.
+    If session_id is provided and already exists, returns the existing session.
+    """
     body = _parse_body(event)
-    session_id = str(uuid.uuid4())
+    raw_sid = body.get("session_id")
+
+    # Validate caller-supplied session_id format
+    _VALID_SESSION_RE = re.compile(r'^[a-zA-Z0-9_#. -]{1,128}$')
+    if raw_sid:
+        if not _VALID_SESSION_RE.match(raw_sid):
+            return _response(400, {"error": "Invalid session_id format"})
+
+    session_id = raw_sid or str(uuid.uuid4())
+    table = dynamodb.Table(SESSIONS_TABLE)
+
+    # If caller provided a session_id, check if it already exists
+    if raw_sid:
+        try:
+            existing = table.get_item(Key={"session_id": session_id})
+            if "Item" in existing:
+                return _response(200, {"session_id": session_id, "session": existing["Item"]})
+        except Exception:
+            pass
 
     item = {
         "session_id": session_id,
         "status": "active",
         "name": body.get("name", f"Session {session_id[:8]}"),
-        "created_at": str(uuid.uuid1().time),
+        "created_at": datetime.now(timezone.utc).isoformat(),
     }
 
     if body.get("description"):
         item["description"] = body["description"]
 
-    table = dynamodb.Table(SESSIONS_TABLE)
     try:
         table.put_item(Item=item)
         return _response(201, {"session_id": session_id, "session": item})
@@ -142,13 +177,14 @@ def create_position(event: dict[str, Any]) -> dict[str, Any]:
     position_id = str(uuid.uuid4())
     item = {
         "session_id": session_id,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "position_id": position_id,
         "x": Decimal(str(x)),
         "y": Decimal(str(y)),
         "label": label or "",
     }
 
-    table = dynamodb.Table(SESSIONS_TABLE)
+    table = dynamodb.Table(MAPS_TABLE)
     try:
         table.put_item(Item=item)
         return _response(201, {"position_id": position_id, "position": item})
@@ -174,6 +210,9 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
 
     if http_method == "GET" and "/api/presence/" in path:
         return get_presence(event)
+
+    if http_method == "GET" and path == "/api/sessions":
+        return list_sessions(event)
 
     if http_method == "POST" and path == "/api/sessions":
         return create_session(event)

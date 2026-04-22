@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>5map - Channel Utilization Detail</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0e17;--card:#131a2b;--border:#1e2d4a;
+  --cyan:#00d4ff;--danger:#ff4757;--warn:#ffa502;--success:#2ed573;
+  --purple:#a855f7;--blue:#3b82f6;
+  --text:#e8eaed;--muted:#8892a4;--dim:#4a5568;
+  --font-mono:'SF Mono','Fira Code','Cascadia Code',monospace;
+  --font-sans:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+}
+html{font-size:14px}
+body{background:var(--bg);color:var(--text);font-family:var(--font-sans);min-height:100vh}
+a{color:var(--cyan);text-decoration:none}
+
+.header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 24px;height:56px;
+  background:linear-gradient(180deg,#0f1520 0%,var(--bg) 100%);
+  border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;
+}
+.header-left{display:flex;align-items:center;gap:14px}
+.logo{font-size:1.5rem;font-weight:800;letter-spacing:-.02em;font-family:var(--font-mono);color:var(--cyan);display:flex;align-items:center;gap:8px}
+.logo svg{width:28px;height:28px;fill:var(--cyan)}
+.back-link{font-size:.75rem;color:var(--muted);padding:4px 10px;border-radius:6px;border:1px solid transparent;transition:all .15s;display:flex;align-items:center;gap:4px}
+.back-link:hover{color:var(--cyan);background:rgba(0,212,255,.06);border-color:rgba(0,212,255,.15)}
+.page-title{font-size:.82rem;color:var(--muted);font-family:var(--font-mono)}
+.last-update{font-size:.72rem;color:var(--dim);font-family:var(--font-mono)}
+
+.content{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px}
+@media(max-width:1000px){.content{grid-template-columns:1fr}}
+.full-width{grid-column:1/-1}
+
+.panel{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border)}
+.panel-title{font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.panel-badge{font-size:.68rem;font-weight:700;padding:2px 7px;border-radius:10px}
+.panel-body{flex:1;overflow:auto;position:relative;min-height:0;padding:12px}
+
+.chart-wrap{width:100%;height:300px;position:relative}
+.chart-wrap canvas{display:block;width:100%;height:100%}
+
+.rec-card{
+  background:rgba(46,213,115,.06);border:1px solid rgba(46,213,115,.25);
+  border-radius:8px;padding:12px 16px;margin-bottom:10px;
+}
+.rec-title{font-size:.72rem;color:var(--success);font-weight:700;margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em}
+.rec-text{font-size:.72rem;color:var(--text);line-height:1.5}
+
+.channel-table{width:100%;border-collapse:collapse;font-size:.7rem}
+.channel-table th{
+  background:var(--bg);color:var(--dim);font-size:.62rem;
+  text-transform:uppercase;letter-spacing:.06em;font-weight:600;
+  padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);
+  position:sticky;top:0;
+}
+.channel-table td{padding:6px 10px;border-bottom:1px solid rgba(30,45,74,.3)}
+.channel-table tr:hover{background:rgba(0,212,255,.04)}
+
+.congestion-bar{height:6px;border-radius:3px;background:var(--bg);overflow:hidden;min-width:60px}
+.congestion-fill{height:100%;border-radius:3px;transition:width .3s}
+
+.stats-row{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px}
+.stat-box{
+  background:var(--bg);border:1px solid var(--border);border-radius:8px;
+  padding:10px 16px;flex:1;min-width:120px;
+}
+.stat-box-value{font-size:1.2rem;font-weight:800;font-family:var(--font-mono)}
+.stat-box-label{font-size:.6rem;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+</style>
+</head>
+<body>
+<header class="header">
+  <div class="header-left">
+    <div class="logo">
+      <svg viewBox="0 0 24 24"><path d="M1.29 7.35a15.56 15.56 0 0 1 21.42 0l.6.58-1.42 1.42-.6-.58a13.56 13.56 0 0 0-18.58 0l-.6.58L.69 7.93l.6-.58Zm4.24 4.24a10.44 10.44 0 0 1 12.94 0l.6.5-1.42 1.42-.52-.42a8.44 8.44 0 0 0-10.26 0l-.52.42-1.42-1.42.6-.5Zm4.24 4.24a5.32 5.32 0 0 1 4.46 0l.68.42-1.42 1.42-.38-.24a3.32 3.32 0 0 0-2.22 0l-.38.24-1.42-1.42.68-.42ZM12 18a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Z"/></svg>
+      5map
+    </div>
+    <a href="visual-indicators.html" class="back-link">&#8592; Back</a>
+    <span class="page-title">Channel Utilization</span>
+  </div>
+  <span class="last-update" id="last-update">--:--:--</span>
+</header>
+
+<div class="content">
+  <!-- 2.4 GHz Chart -->
+  <section class="panel" style="min-height:400px">
+    <div class="panel-head">
+      <span class="panel-title">2.4 GHz Band</span>
+      <span class="panel-badge" style="background:rgba(255,165,2,.12);color:var(--warn)" id="badge-24">--</span>
+    </div>
+    <div class="panel-body">
+      <div class="chart-wrap"><canvas id="chart-24"></canvas></div>
+    </div>
+  </section>
+
+  <!-- 5 GHz Chart -->
+  <section class="panel" style="min-height:400px">
+    <div class="panel-head">
+      <span class="panel-title">5 GHz Band</span>
+      <span class="panel-badge" style="background:rgba(168,85,247,.12);color:var(--purple)" id="badge-5">--</span>
+    </div>
+    <div class="panel-body">
+      <div class="chart-wrap"><canvas id="chart-5"></canvas></div>
+    </div>
+  </section>
+
+  <!-- Recommendations -->
+  <section class="panel full-width">
+    <div class="panel-head">
+      <span class="panel-title">Analysis & Recommendations</span>
+    </div>
+    <div class="panel-body" id="recommendations"></div>
+  </section>
+
+  <!-- Channel Table -->
+  <section class="panel full-width" style="max-height:500px">
+    <div class="panel-head">
+      <span class="panel-title">Channel Details</span>
+    </div>
+    <div class="panel-body" style="overflow:auto;padding:0">
+      <table class="channel-table">
+        <thead>
+          <tr>
+            <th>Channel</th>
+            <th>Band</th>
+            <th>Devices</th>
+            <th>Avg RSSI</th>
+            <th>Congestion</th>
+            <th>Visual</th>
+            <th>Device Types</th>
+          </tr>
+        </thead>
+        <tbody id="channel-tbody"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<script>
+(function() {
+'use strict';
+
+var COLORS = {
+  bg:'#0a0e17',card:'#131a2b',border:'#1e2d4a',
+  cyan:'#00d4ff',danger:'#ff4757',warn:'#ffa502',success:'#2ed573',
+  purple:'#a855f7',blue:'#3b82f6',text:'#e8eaed',muted:'#8892a4',dim:'#4a5568'
+};
+
+function dpr() { return window.devicePixelRatio || 1; }
+
+function setupCanvas(canvas, w, h) {
+  var r = dpr();
+  canvas.width = w*r; canvas.height = h*r;
+  canvas.style.width = w+'px'; canvas.style.height = h+'px';
+  var ctx = canvas.getContext('2d');
+  ctx.scale(r,r);
+  return ctx;
+}
+
+function congestionColor(c) {
+  if (c < 0.3) return COLORS.success;
+  if (c < 0.6) return COLORS.warn;
+  return COLORS.danger;
+}
+
+function parseData(raw) {
+  function unwrap(v) {
+    if (v === null || v === undefined) return v;
+    if (typeof v !== 'object') return v;
+    if (Array.isArray(v)) return v.map(unwrap);
+    if ('S' in v) return v.S;
+    if ('N' in v) return parseFloat(v.N);
+    if ('BOOL' in v) return v.BOOL;
+    if ('L' in v) return v.L.map(unwrap);
+    if ('M' in v) { var o={}; for(var k in v.M) o[k]=unwrap(v.M[k]); return o; }
+    var o={}; for(var k in v) o[k]=unwrap(v[k]); return o;
+  }
+  return unwrap(raw);
+}
+
+function analyzeChannels(data) {
+  var devices = data.devices || [];
+  var channels24 = [1,2,3,4,5,6,7,8,9,10,11,12,13];
+  var channels5 = [36,40,44,48,52,56,60,64,100,104,108,112,116,120,124,128,132,136,140,149,153,157,161,165];
+
+  var buckets = {};
+  devices.forEach(function(d) {
+    var ch = d.channel;
+    if (!ch || ch <= 0) return;
+    if (!buckets[ch]) buckets[ch] = [];
+    buckets[ch].push(d);
+  });
+
+  function buildBand(chList, bandLabel) {
+    return chList.map(function(ch) {
+      var devs = buckets[ch] || [];
+      var count = devs.length;
+      var rssiSum = devs.reduce(function(s,d){ return s+d.rssi_dbm; }, 0);
+      var avgRssi = count > 0 ? Math.round(rssiSum/count) : -100;
+      var rssiNorm = Math.max(0, Math.min(1, (avgRssi + 100) / 70));
+      var congestion = Math.max(0, Math.min(1, (Math.min(count,5)/5)*0.6 + rssiNorm*0.4));
+
+      var types = {};
+      devs.forEach(function(d) { var t = d.device_type || 'unknown'; types[t] = (types[t]||0)+1; });
+
+      return {
+        channel: ch, band: bandLabel, count: count,
+        avgRssi: avgRssi, congestion: Math.round(congestion*100)/100,
+        color: congestionColor(congestion), types: types, devices: devs
+      };
+    });
+  }
+
+  var b24 = buildBand(channels24, '2.4GHz');
+  var b5 = buildBand(channels5, '5GHz');
+
+  var active24 = b24.filter(function(c){ return c.count > 0; });
+  var active5 = b5.filter(function(c){ return c.count > 0; });
+
+  var best24 = b24.reduce(function(best, c){ return c.congestion < best.congestion ? c : best; }, {congestion:2});
+  var best5 = b5.reduce(function(best, c){ return c.congestion < best.congestion ? c : best; }, {congestion:2});
+  var worst24 = active24.reduce(function(w, c){ return c.congestion > w.congestion ? c : w; }, {congestion:-1});
+  var worst5 = active5.reduce(function(w, c){ return c.congestion > w.congestion ? c : w; }, {congestion:-1});
+
+  return {
+    band24: b24, band5: b5,
+    active24: active24, active5: active5,
+    best24: best24, best5: best5,
+    worst24: worst24, worst5: worst5,
+    totalDevices24: active24.reduce(function(s,c){ return s+c.count; },0),
+    totalDevices5: active5.reduce(function(s,c){ return s+c.count; },0)
+  };
+}
+
+function drawBarChart(canvasId, channels, bandLabel) {
+  var canvas = document.getElementById(canvasId);
+  var wrap = canvas.parentElement;
+  var W = wrap.clientWidth;
+  var H = wrap.clientHeight;
+  if (W < 10 || H < 10) return;
+
+  var ctx = setupCanvas(canvas, W, H);
+  ctx.clearRect(0, 0, W, H);
+
+  if (!channels.length) {
+    ctx.fillStyle = COLORS.dim;
+    ctx.font = '12px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('No devices on ' + bandLabel, W/2, H/2);
+    return;
+  }
+
+  var maxCount = Math.max.apply(null, channels.map(function(c){ return c.count; }));
+  if (maxCount === 0) maxCount = 1;
+
+  var padL = 36, padR = 12, padT = 20, padB = 36;
+  var chartW = W - padL - padR;
+  var chartH = H - padT - padB;
+  var barW = Math.max(12, Math.floor(chartW / channels.length) - 6);
+
+  // Y axis
+  var yTicks = maxCount <= 4 ? Array.from({length: maxCount+1}, function(_,i){ return i; }) : [0, Math.ceil(maxCount/2), maxCount];
+  yTicks.forEach(function(t) {
+    var y = padT + chartH - (t/maxCount)*chartH;
+    ctx.fillStyle = COLORS.dim;
+    ctx.font = (9/dpr()*dpr()) + 'px SF Mono, monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(t, padL - 6, y + 3);
+    ctx.strokeStyle = 'rgba(30,45,74,.3)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W-padR, y); ctx.stroke();
+    ctx.setLineDash([]);
+  });
+
+  channels.forEach(function(ch, i) {
+    var x = padL + i * (barW + 6) + 3;
+    var barH = (ch.count / maxCount) * chartH;
+    var y = padT + chartH - barH;
+
+    // Bar
+    var barGrad = ctx.createLinearGradient(x, y, x, padT + chartH);
+    barGrad.addColorStop(0, ch.color);
+    barGrad.addColorStop(1, ch.color + '44');
+    ctx.fillStyle = barGrad;
+    ctx.beginPath();
+    ctx.roundRect(x, y, barW, barH, [3,3,0,0]);
+    ctx.fill();
+
+    // Count label
+    if (ch.count > 0) {
+      ctx.fillStyle = COLORS.text;
+      ctx.font = 'bold ' + (10/dpr()*dpr()) + 'px SF Mono, monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(ch.count, x + barW/2, y - 6);
+    }
+
+    // Channel label
+    ctx.fillStyle = ch.count > 0 ? COLORS.muted : COLORS.dim;
+    ctx.font = (9/dpr()*dpr()) + 'px SF Mono, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('Ch' + ch.channel, x + barW/2, padT + chartH + 14);
+
+    // Congestion color indicator
+    if (ch.count > 0) {
+      ctx.fillStyle = ch.color;
+      ctx.fillRect(x, padT + chartH + 22, barW, 3);
+    }
+  });
+}
+
+function buildPage(data) {
+  var analysis = analyzeChannels(data);
+
+  document.getElementById('badge-24').textContent = analysis.active24.length + ' active channels';
+  document.getElementById('badge-5').textContent = analysis.active5.length + ' active channels';
+
+  drawBarChart('chart-24', analysis.band24.filter(function(c){ return c.count > 0 || [1,6,11].indexOf(c.channel) >= 0; }), '2.4GHz');
+  drawBarChart('chart-5', analysis.band5.filter(function(c){ return c.count > 0; }), '5GHz');
+
+  // Recommendations
+  var recEl = document.getElementById('recommendations');
+  var recs = '';
+
+  recs += '<div class="stats-row">' +
+    '<div class="stat-box"><div class="stat-box-value" style="color:var(--warn)">' + analysis.totalDevices24 + '</div><div class="stat-box-label">2.4GHz Devices</div></div>' +
+    '<div class="stat-box"><div class="stat-box-value" style="color:var(--purple)">' + analysis.totalDevices5 + '</div><div class="stat-box-label">5GHz Devices</div></div>' +
+    '<div class="stat-box"><div class="stat-box-value" style="color:var(--success)">' + (analysis.best24.channel || '--') + '</div><div class="stat-box-label">Best 2.4GHz Ch</div></div>' +
+    '<div class="stat-box"><div class="stat-box-value" style="color:var(--success)">' + (analysis.best5.channel || '--') + '</div><div class="stat-box-label">Best 5GHz Ch</div></div>' +
+    '</div>';
+
+  if (analysis.worst24.congestion > 0.6) {
+    recs += '<div class="rec-card" style="background:rgba(255,71,87,.06);border-color:rgba(255,71,87,.25)">' +
+      '<div class="rec-title" style="color:var(--danger)">High Congestion Warning</div>' +
+      '<div class="rec-text">Channel ' + analysis.worst24.channel + ' (2.4GHz) has congestion score of ' + (analysis.worst24.congestion*100).toFixed(0) + '% with ' + analysis.worst24.count + ' devices. Consider migrating to channel ' + (analysis.best24.channel || 1) + '.</div></div>';
+  }
+
+  recs += '<div class="rec-card">' +
+    '<div class="rec-title">Recommended Channels</div>' +
+    '<div class="rec-text">2.4GHz: Use non-overlapping channels 1, 6, or 11 for best performance. Best option: Channel ' + (analysis.best24.channel || 1) + '.<br>' +
+    '5GHz: Best option: Channel ' + (analysis.best5.channel || 36) + '. The 5GHz band offers more non-overlapping channels and less interference.</div></div>';
+
+  if (analysis.active24.length > 3) {
+    recs += '<div class="rec-card" style="background:rgba(255,165,2,.06);border-color:rgba(255,165,2,.25)">' +
+      '<div class="rec-title" style="color:var(--warn)">Interference Analysis</div>' +
+      '<div class="rec-text">' + analysis.active24.length + ' active channels in 2.4GHz band. Adjacent channel interference is likely between overlapping channels. Consider consolidating to channels 1, 6, and 11 only.</div></div>';
+  }
+
+  recEl.innerHTML = recs;
+
+  // Channel Table
+  var tbody = document.getElementById('channel-tbody');
+  var allActive = analysis.active24.concat(analysis.active5);
+  allActive.sort(function(a,b){ return b.congestion - a.congestion; });
+
+  tbody.innerHTML = allActive.map(function(ch) {
+    var typeStr = Object.keys(ch.types).map(function(t){ return t + ': ' + ch.types[t]; }).join(', ');
+    return '<tr>' +
+      '<td style="font-family:var(--font-mono);font-weight:700">' + ch.channel + '</td>' +
+      '<td>' + ch.band + '</td>' +
+      '<td style="font-family:var(--font-mono)">' + ch.count + '</td>' +
+      '<td style="color:' + (ch.avgRssi >= -60 ? COLORS.success : ch.avgRssi >= -80 ? COLORS.warn : COLORS.danger) + '">' + ch.avgRssi + ' dBm</td>' +
+      '<td style="font-family:var(--font-mono);color:' + ch.color + '">' + (ch.congestion*100).toFixed(0) + '%</td>' +
+      '<td><div class="congestion-bar"><div class="congestion-fill" style="width:' + (ch.congestion*100) + '%;background:' + ch.color + '"></div></div></td>' +
+      '<td style="font-size:.62rem;color:var(--dim)">' + typeStr + '</td>' +
+      '</tr>';
+  }).join('');
+}
+
+async function init() {
+  try {
+    var res = await fetch('data.json?_=' + Date.now());
+    var raw = await res.json();
+    buildPage(parseData(raw));
+    document.getElementById('last-update').textContent = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+
+    setInterval(async function() {
+      try {
+        var r = await fetch('data.json?_=' + Date.now());
+        buildPage(parseData(await r.json()));
+        document.getElementById('last-update').textContent = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      } catch(e) {}
+    }, 5000);
+  } catch(e) { console.warn('Failed to load data:', e); }
+}
+
+window.addEventListener('load', init);
+window.addEventListener('resize', function() {
+  // Redraw on resize handled by next poll interval
+});
+})();
+</script>
+</body>
+</html>

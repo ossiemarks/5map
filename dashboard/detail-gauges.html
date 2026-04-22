@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>5map - Signal Gauges Detail</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0e17;--card:#131a2b;--border:#1e2d4a;
+  --cyan:#00d4ff;--danger:#ff4757;--warn:#ffa502;--success:#2ed573;
+  --purple:#a855f7;--blue:#3b82f6;
+  --text:#e8eaed;--muted:#8892a4;--dim:#4a5568;
+  --font-mono:'SF Mono','Fira Code','Cascadia Code',monospace;
+  --font-sans:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+}
+html{font-size:14px}
+body{background:var(--bg);color:var(--text);font-family:var(--font-sans);min-height:100vh}
+a{color:var(--cyan);text-decoration:none}
+
+.header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 24px;height:56px;
+  background:linear-gradient(180deg,#0f1520 0%,var(--bg) 100%);
+  border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;
+}
+.header-left{display:flex;align-items:center;gap:14px}
+.logo{font-size:1.5rem;font-weight:800;letter-spacing:-.02em;font-family:var(--font-mono);color:var(--cyan);display:flex;align-items:center;gap:8px}
+.logo svg{width:28px;height:28px;fill:var(--cyan)}
+.back-link{font-size:.75rem;color:var(--muted);padding:4px 10px;border-radius:6px;border:1px solid transparent;transition:all .15s;display:flex;align-items:center;gap:4px}
+.back-link:hover{color:var(--cyan);background:rgba(0,212,255,.06);border-color:rgba(0,212,255,.15)}
+.page-title{font-size:.82rem;color:var(--muted);font-family:var(--font-mono)}
+.last-update{font-size:.72rem;color:var(--dim);font-family:var(--font-mono)}
+
+.stats-bar{
+  display:flex;gap:16px;padding:12px 24px;
+  border-bottom:1px solid var(--border);flex-wrap:wrap;
+}
+.stat-item{display:flex;flex-direction:column;gap:2px}
+.stat-value{font-size:1.3rem;font-weight:800;font-family:var(--font-mono)}
+.stat-label{font-size:.62rem;color:var(--dim);text-transform:uppercase;letter-spacing:.06em}
+
+.ap-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+  gap:12px;padding:12px;
+}
+
+.ap-card{
+  background:var(--card);border:1px solid var(--border);border-radius:10px;
+  overflow:hidden;transition:border-color .2s,box-shadow .2s;
+}
+.ap-card:hover{border-color:rgba(0,212,255,.3);box-shadow:0 0 16px rgba(0,212,255,.06)}
+.ap-card-head{
+  display:flex;align-items:center;gap:12px;padding:12px 14px;
+  border-bottom:1px solid var(--border);
+}
+.ap-gauge-wrap{flex-shrink:0}
+.ap-info{flex:1;min-width:0}
+.ap-ssid{font-size:.85rem;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ap-mac{font-size:.66rem;color:var(--dim);font-family:var(--font-mono)}
+.ap-quality{font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:10px;display:inline-block;margin-top:4px}
+
+.ap-details{padding:10px 14px;display:grid;grid-template-columns:1fr 1fr;gap:6px 12px}
+.ap-detail-row{display:flex;justify-content:space-between;font-size:.68rem}
+.ap-detail-label{color:var(--dim)}
+.ap-detail-value{font-family:var(--font-mono);color:var(--text)}
+
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+</style>
+</head>
+<body>
+<header class="header">
+  <div class="header-left">
+    <div class="logo">
+      <svg viewBox="0 0 24 24"><path d="M1.29 7.35a15.56 15.56 0 0 1 21.42 0l.6.58-1.42 1.42-.6-.58a13.56 13.56 0 0 0-18.58 0l-.6.58L.69 7.93l.6-.58Zm4.24 4.24a10.44 10.44 0 0 1 12.94 0l.6.5-1.42 1.42-.52-.42a8.44 8.44 0 0 0-10.26 0l-.52.42-1.42-1.42.6-.5Zm4.24 4.24a5.32 5.32 0 0 1 4.46 0l.68.42-1.42 1.42-.38-.24a3.32 3.32 0 0 0-2.22 0l-.38.24-1.42-1.42.68-.42ZM12 18a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Z"/></svg>
+      5map
+    </div>
+    <a href="visual-indicators.html" class="back-link">&#8592; Back</a>
+    <span class="page-title">Signal Gauges</span>
+  </div>
+  <span class="last-update" id="last-update">--:--:--</span>
+</header>
+
+<div class="stats-bar" id="stats-bar"></div>
+<div class="ap-grid" id="ap-grid"></div>
+
+<script>
+(function() {
+'use strict';
+
+var COLORS = {
+  cyan:'#00d4ff',danger:'#ff4757',warn:'#ffa502',success:'#2ed573',
+  purple:'#a855f7',text:'#e8eaed',muted:'#8892a4',dim:'#4a5568'
+};
+
+function dpr() { return window.devicePixelRatio || 1; }
+
+function setupCanvas(canvas, w, h) {
+  var r = dpr();
+  canvas.width = w*r; canvas.height = h*r;
+  canvas.style.width = w+'px'; canvas.style.height = h+'px';
+  var ctx = canvas.getContext('2d');
+  ctx.scale(r,r);
+  return ctx;
+}
+
+function rssiColor(rssi) {
+  if (rssi >= -50) return COLORS.success;
+  if (rssi >= -65) return COLORS.cyan;
+  if (rssi >= -75) return COLORS.warn;
+  return COLORS.danger;
+}
+
+function qualityLabel(rssi) {
+  if (rssi >= -50) return ['Excellent', COLORS.success];
+  if (rssi >= -60) return ['Good', COLORS.cyan];
+  if (rssi >= -70) return ['Fair', COLORS.warn];
+  if (rssi >= -80) return ['Weak', '#ff6b81'];
+  return ['Dead', COLORS.danger];
+}
+
+function rssiToPercent(rssi) {
+  return Math.max(0, Math.min(100, ((rssi + 30) / 60) * 100));
+}
+
+function estimateDistance(rssi, type) {
+  var n = 2.7, tx = type === 'ap' ? -40 : -59;
+  return Math.min(Math.pow(10, (tx - rssi) / (10*n)), 20);
+}
+
+function formatTime(ts) {
+  if (!ts) return '--';
+  return new Date(ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+
+function drawGauge(canvas, rssi, size) {
+  size = size || 100;
+  var ctx = setupCanvas(canvas, size, size);
+  var cx = size/2, cy = size/2, radius = size*0.38;
+  var startAngle = Math.PI * 0.75, endAngle = Math.PI * 2.25;
+  var pct = rssiToPercent(rssi) / 100;
+
+  ctx.clearRect(0, 0, size, size);
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, startAngle, endAngle);
+  ctx.strokeStyle = 'rgba(30,45,74,.8)';
+  ctx.lineWidth = 8;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+
+  var arcEnd = startAngle + pct * (endAngle - startAngle);
+  var col = rssiColor(rssi);
+
+  ctx.save();
+  ctx.shadowColor = col;
+  ctx.shadowBlur = 10 * pct;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, startAngle, arcEnd);
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 8;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.fillStyle = COLORS.text;
+  ctx.font = 'bold ' + (size * 0.16) + 'px SF Mono, Fira Code, monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(rssi + '', cx, cy - 2);
+  ctx.font = (size * 0.09) + 'px system-ui';
+  ctx.fillStyle = COLORS.muted;
+  ctx.fillText('dBm', cx, cy + size * 0.12);
+}
+
+function parseData(raw) {
+  function unwrap(v) {
+    if (v === null || v === undefined) return v;
+    if (typeof v !== 'object') return v;
+    if (Array.isArray(v)) return v.map(unwrap);
+    if ('S' in v) return v.S;
+    if ('N' in v) return parseFloat(v.N);
+    if ('BOOL' in v) return v.BOOL;
+    if ('L' in v) return v.L.map(unwrap);
+    if ('M' in v) { var o={}; for(var k in v.M) o[k]=unwrap(v.M[k]); return o; }
+    var o={}; for(var k in v) o[k]=unwrap(v[k]); return o;
+  }
+  return unwrap(raw);
+}
+
+function buildPage(data) {
+  var aps = (data.devices || []).filter(function(d){ return d.device_type === 'ap'; });
+  aps.sort(function(a,b){ return b.rssi_dbm - a.rssi_dbm; });
+
+  var excellent = aps.filter(function(d){ return d.rssi_dbm >= -50; }).length;
+  var good = aps.filter(function(d){ return d.rssi_dbm >= -60 && d.rssi_dbm < -50; }).length;
+  var fair = aps.filter(function(d){ return d.rssi_dbm >= -70 && d.rssi_dbm < -60; }).length;
+  var weak = aps.filter(function(d){ return d.rssi_dbm < -70; }).length;
+  var avgRssi = aps.length ? Math.round(aps.reduce(function(s,d){ return s+d.rssi_dbm; },0)/aps.length) : 0;
+
+  document.getElementById('stats-bar').innerHTML =
+    '<div class="stat-item"><span class="stat-value" style="color:var(--cyan)">' + aps.length + '</span><span class="stat-label">Total APs</span></div>' +
+    '<div class="stat-item"><span class="stat-value" style="color:var(--success)">' + excellent + '</span><span class="stat-label">Excellent</span></div>' +
+    '<div class="stat-item"><span class="stat-value" style="color:var(--cyan)">' + good + '</span><span class="stat-label">Good</span></div>' +
+    '<div class="stat-item"><span class="stat-value" style="color:var(--warn)">' + fair + '</span><span class="stat-label">Fair</span></div>' +
+    '<div class="stat-item"><span class="stat-value" style="color:var(--danger)">' + weak + '</span><span class="stat-label">Weak / Dead</span></div>' +
+    '<div class="stat-item"><span class="stat-value">' + avgRssi + '</span><span class="stat-label">Avg RSSI</span></div>';
+
+  var grid = document.getElementById('ap-grid');
+  grid.innerHTML = '';
+
+  aps.forEach(function(ap) {
+    var ql = qualityLabel(ap.rssi_dbm);
+    var dist = estimateDistance(ap.rssi_dbm, 'ap');
+    var ssid = (!ap.ssid || ap.ssid === '-') ? 'Hidden Network' : ap.ssid;
+    var risk = parseFloat(ap.risk_score) || 0;
+
+    var card = document.createElement('div');
+    card.className = 'ap-card';
+    card.innerHTML =
+      '<div class="ap-card-head">' +
+        '<div class="ap-gauge-wrap"><canvas class="ap-gauge" width="100" height="100"></canvas></div>' +
+        '<div class="ap-info">' +
+          '<div class="ap-ssid">' + ssid + '</div>' +
+          '<div class="ap-mac">' + ap.mac_address + '</div>' +
+          '<span class="ap-quality" style="background:' + ql[1] + '22;color:' + ql[1] + ';border:1px solid ' + ql[1] + '44">' + ql[0] + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="ap-details">' +
+        '<div class="ap-detail-row"><span class="ap-detail-label">RSSI</span><span class="ap-detail-value" style="color:' + rssiColor(ap.rssi_dbm) + '">' + ap.rssi_dbm + ' dBm</span></div>' +
+        '<div class="ap-detail-row"><span class="ap-detail-label">Signal</span><span class="ap-detail-value">' + rssiToPercent(ap.rssi_dbm).toFixed(0) + '%</span></div>' +
+        '<div class="ap-detail-row"><span class="ap-detail-label">Channel</span><span class="ap-detail-value">' + (ap.channel || '--') + '</span></div>' +
+        '<div class="ap-detail-row"><span class="ap-detail-label">Band</span><span class="ap-detail-value">' + (ap.bandwidth || (ap.channel > 14 ? '5GHz' : '2.4GHz')) + '</span></div>' +
+        '<div class="ap-detail-row"><span class="ap-detail-label">Vendor</span><span class="ap-detail-value">' + (ap.vendor || 'Unknown') + '</span></div>' +
+        '<div class="ap-detail-row"><span class="ap-detail-label">Distance</span><span class="ap-detail-value">~' + dist.toFixed(1) + 'm</span></div>' +
+        '<div class="ap-detail-row"><span class="ap-detail-label">Risk</span><span class="ap-detail-value" style="color:' + (risk<0.3?COLORS.success:risk<0.6?COLORS.warn:COLORS.danger) + '">' + (risk*100).toFixed(0) + '%</span></div>' +
+        '<div class="ap-detail-row"><span class="ap-detail-label">MAC Random</span><span class="ap-detail-value">' + (ap.is_randomized_mac ? 'Yes' : 'No') + '</span></div>' +
+        '<div class="ap-detail-row"><span class="ap-detail-label">First Seen</span><span class="ap-detail-value">' + formatTime(ap.first_seen) + '</span></div>' +
+        '<div class="ap-detail-row"><span class="ap-detail-label">Last Seen</span><span class="ap-detail-value">' + formatTime(ap.last_seen) + '</span></div>' +
+      '</div>';
+
+    grid.appendChild(card);
+
+    var gaugeCanvas = card.querySelector('.ap-gauge');
+    drawGauge(gaugeCanvas, ap.rssi_dbm, 100);
+  });
+}
+
+async function init() {
+  try {
+    var res = await fetch('data.json?_=' + Date.now());
+    var raw = await res.json();
+    var data = parseData(raw);
+    buildPage(data);
+    document.getElementById('last-update').textContent = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+
+    setInterval(async function() {
+      try {
+        var r = await fetch('data.json?_=' + Date.now());
+        var raw2 = await r.json();
+        buildPage(parseData(raw2));
+        document.getElementById('last-update').textContent = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      } catch(e) {}
+    }, 3000);
+  } catch(e) { console.warn('Failed to load data:', e); }
+}
+
+window.addEventListener('load', init);
+})();
+</script>
+</body>
+</html>

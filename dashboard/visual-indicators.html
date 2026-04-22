@@ -22,7 +22,7 @@ body{
 }
 a{color:var(--cyan);text-decoration:none}
 
-/* ── Header ── */
+/* -- Header -- */
 .header{
   display:flex;align-items:center;justify-content:space-between;
   padding:0 24px;height:56px;
@@ -55,17 +55,25 @@ a{color:var(--cyan);text-decoration:none}
 .header-right{display:flex;align-items:center;gap:16px}
 .last-update{font-size:.72rem;color:var(--dim);font-family:var(--font-mono)}
 
-/* ── Panel ── */
+/* -- Panel -- */
 .panel{
   background:var(--card);border:1px solid var(--border);
   border-radius:10px;overflow:hidden;
   display:flex;flex-direction:column;min-height:0;
+  transition:border-color .25s ease, box-shadow .25s ease, transform .15s ease;
+  cursor:pointer;
+}
+.panel:hover{
+  border-color:rgba(0,212,255,.35);
+  box-shadow:0 0 20px rgba(0,212,255,.08), 0 0 40px rgba(0,212,255,.04);
+  transform:translateY(-1px);
 }
 .panel-head{
   display:flex;align-items:center;justify-content:space-between;
   padding:10px 14px;border-bottom:1px solid var(--border);
   flex-shrink:0;
 }
+.panel-head-left{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
 .panel-title{
   font-size:.78rem;font-weight:600;text-transform:uppercase;
   letter-spacing:.06em;color:var(--muted);
@@ -75,9 +83,20 @@ a{color:var(--cyan);text-decoration:none}
   font-size:.68rem;font-weight:700;
   padding:2px 7px;border-radius:10px;color:#fff;
 }
+.panel-summary{
+  font-size:.62rem;color:var(--dim);font-family:var(--font-mono);
+  margin-left:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.panel-detail-link{
+  font-size:.65rem;color:var(--cyan);
+  opacity:.5;transition:opacity .2s;
+  white-space:nowrap;display:flex;align-items:center;gap:4px;
+  font-family:var(--font-mono);
+}
+.panel:hover .panel-detail-link{opacity:1}
 .panel-body{flex:1;overflow:auto;position:relative;min-height:0}
 
-/* ── Main Grid ── */
+/* -- Main Grid -- */
 .vi-grid{
   display:grid;
   grid-template-columns:2fr 1fr;
@@ -101,7 +120,7 @@ a{color:var(--cyan);text-decoration:none}
   .vi-row2,.vi-row3{grid-template-columns:1fr}
 }
 
-/* ── Radar panel ── */
+/* -- Radar panel -- */
 .radar-wrap{
   position:relative;width:100%;
   display:flex;align-items:center;justify-content:center;
@@ -109,7 +128,7 @@ a{color:var(--cyan);text-decoration:none}
 }
 #radar-canvas{display:block;width:100%;height:100%}
 
-/* ── Tooltip ── */
+/* -- Tooltip -- */
 .vi-tooltip{
   position:fixed;z-index:200;pointer-events:none;
   background:rgba(19,26,43,.97);border:1px solid var(--border);
@@ -133,7 +152,7 @@ a{color:var(--cyan);text-decoration:none}
 .vi-tooltip .tt-lbl{color:var(--dim);font-size:.66rem}
 .vi-tooltip .tt-val{font-family:var(--font-mono);font-size:.68rem;color:var(--text)}
 
-/* ── Gauge grid ── */
+/* -- Gauge grid -- */
 .gauge-grid{
   display:grid;
   grid-template-columns:repeat(auto-fill,minmax(90px,1fr));
@@ -155,7 +174,7 @@ a{color:var(--cyan);text-decoration:none}
   letter-spacing:.04em;
 }
 
-/* ── Channel chart ── */
+/* -- Channel chart -- */
 .channel-wrap{
   padding:12px;width:100%;height:100%;
   display:flex;flex-direction:column;gap:8px;
@@ -171,7 +190,7 @@ a{color:var(--cyan);text-decoration:none}
 .legend-item{display:flex;align-items:center;gap:4px}
 #channel-canvas{width:100%;flex:1;display:block;min-height:0}
 
-/* ── BLE rings ── */
+/* -- BLE rings -- */
 .ble-wrap{
   position:relative;width:100%;height:100%;
   display:flex;align-items:center;justify-content:center;
@@ -179,7 +198,7 @@ a{color:var(--cyan);text-decoration:none}
 }
 #ble-canvas{display:block;width:100%;height:100%}
 
-/* ── Risk panel ── */
+/* -- Risk panel -- */
 .risk-wrap{
   display:flex;flex-direction:column;gap:12px;padding:12px;
   height:100%;
@@ -245,7 +264,7 @@ a{color:var(--cyan);text-decoration:none}
   color:var(--dim);margin-top:2px;
 }
 
-/* ── CSI panel ── */
+/* -- CSI panel -- */
 .csi-wrap{
   padding:12px;height:100%;display:flex;flex-direction:column;gap:8px;
 }
@@ -272,13 +291,13 @@ a{color:var(--cyan);text-decoration:none}
 }
 #csi-phase-canvas{width:100%;height:16px;display:block;flex-shrink:0;border-radius:3px;overflow:hidden}
 
-/* ── Scrollbar ── */
+/* -- Scrollbar -- */
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 ::-webkit-scrollbar-thumb:hover{background:var(--dim)}
 
-/* ── Loading spinner ── */
+/* -- Loading spinner -- */
 .spinner{
   width:24px;height:24px;border:2px solid var(--border);
   border-top-color:var(--cyan);border-radius:50%;
@@ -337,13 +356,17 @@ a{color:var(--cyan);text-decoration:none}
 <main class="vi-grid">
 
   <!-- Panel 1: Device Radar (spans col 1, row 1) -->
-  <section class="panel" id="panel-radar" style="min-height:420px">
+  <section class="panel" id="panel-radar" style="min-height:420px" onclick="window.location.href='detail-radar.html'">
     <div class="panel-head">
-      <span class="panel-title">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--cyan)" style="flex-shrink:0"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm1 17.93V18a1 1 0 0 0-2 0v1.93A8 8 0 0 1 4.07 13H6a1 1 0 0 0 0-2H4.07A8 8 0 0 1 11 4.07V6a1 1 0 0 0 2 0V4.07A8 8 0 0 1 19.93 11H18a1 1 0 0 0 0 2h1.93A8 8 0 0 1 13 19.93ZM12 10a2 2 0 1 0 2 2 2 2 0 0 0-2-2Z"/></svg>
-        Device Radar
-      </span>
+      <div class="panel-head-left">
+        <span class="panel-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--cyan)" style="flex-shrink:0"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm1 17.93V18a1 1 0 0 0-2 0v1.93A8 8 0 0 1 4.07 13H6a1 1 0 0 0 0-2H4.07A8 8 0 0 1 11 4.07V6a1 1 0 0 0 2 0V4.07A8 8 0 0 1 19.93 11H18a1 1 0 0 0 0 2h1.93A8 8 0 0 1 13 19.93ZM12 10a2 2 0 1 0 2 2 2 2 0 0 0-2-2Z"/></svg>
+          Device Radar
+        </span>
+        <span class="panel-summary" id="radar-summary"></span>
+      </div>
       <span class="panel-badge" style="background:rgba(0,212,255,.12);color:var(--cyan)" id="radar-count">-- devices</span>
+      <a class="panel-detail-link" href="detail-radar.html" onclick="event.stopPropagation()">View Details <span style="font-size:.8em">&#8594;</span></a>
     </div>
     <div class="panel-body">
       <div class="radar-wrap" id="radar-wrap">
@@ -353,13 +376,17 @@ a{color:var(--cyan);text-decoration:none}
   </section>
 
   <!-- Panel 2: Signal Gauges (col 2, row 1) -->
-  <section class="panel" id="panel-gauges" style="min-height:420px">
+  <section class="panel" id="panel-gauges" style="min-height:420px" onclick="window.location.href='detail-gauges.html'">
     <div class="panel-head">
-      <span class="panel-title">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--cyan)" style="flex-shrink:0"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8Zm3.54-11.54a1 1 0 0 0-1.41 0L12 10.59l-.88-.88a1 1 0 1 0-1.41 1.41l1.59 1.59a1 1 0 0 0 1.41 0l2.83-2.83a1 1 0 0 0 0-1.42Z"/></svg>
-        Signal Gauges
-      </span>
+      <div class="panel-head-left">
+        <span class="panel-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--cyan)" style="flex-shrink:0"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8Zm3.54-11.54a1 1 0 0 0-1.41 0L12 10.59l-.88-.88a1 1 0 1 0-1.41 1.41l1.59 1.59a1 1 0 0 0 1.41 0l2.83-2.83a1 1 0 0 0 0-1.42Z"/></svg>
+          Signal Gauges
+        </span>
+        <span class="panel-summary" id="gauge-summary"></span>
+      </div>
       <span class="panel-badge" style="background:rgba(46,213,115,.12);color:var(--success)" id="gauge-ap-count">-- APs</span>
+      <a class="panel-detail-link" href="detail-gauges.html" onclick="event.stopPropagation()">View Details <span style="font-size:.8em">&#8594;</span></a>
     </div>
     <div class="panel-body">
       <div class="gauge-grid" id="gauge-grid">
@@ -372,13 +399,17 @@ a{color:var(--cyan);text-decoration:none}
   <div class="vi-row2">
 
     <!-- Panel 3: Channel Utilization -->
-    <section class="panel" id="panel-channel" style="min-height:300px">
+    <section class="panel" id="panel-channel" style="min-height:300px" onclick="window.location.href='detail-channels.html'">
       <div class="panel-head">
-        <span class="panel-title">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--cyan)" style="flex-shrink:0"><path d="M4 6h2v12H4zm4-3h2v18H8zm4 6h2v9h-2zm4-4h2v16h-2zm4 3h2v10h-2z"/></svg>
-          Channel Utilization
-        </span>
+        <div class="panel-head-left">
+          <span class="panel-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--cyan)" style="flex-shrink:0"><path d="M4 6h2v12H4zm4-3h2v18H8zm4 6h2v9h-2zm4-4h2v16h-2zm4 3h2v10h-2z"/></svg>
+            Channel Utilization
+          </span>
+          <span class="panel-summary" id="channel-summary"></span>
+        </div>
         <span class="panel-badge" style="background:rgba(168,85,247,.12);color:var(--purple)" id="channel-total">-- channels active</span>
+        <a class="panel-detail-link" href="detail-channels.html" onclick="event.stopPropagation()">View Details <span style="font-size:.8em">&#8594;</span></a>
       </div>
       <div class="panel-body">
         <div class="channel-wrap">
@@ -394,13 +425,17 @@ a{color:var(--cyan);text-decoration:none}
     </section>
 
     <!-- Panel 4: BLE Proximity Rings -->
-    <section class="panel" id="panel-ble" style="min-height:300px">
+    <section class="panel" id="panel-ble" style="min-height:300px" onclick="window.location.href='detail-ble.html'">
       <div class="panel-head">
-        <span class="panel-title">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--purple)" style="flex-shrink:0"><path d="m17.71 7.71-4-4a1 1 0 0 0-1.42 0l-4 4a1 1 0 0 0 0 1.42l3 3-3 3a1 1 0 0 0 0 1.42l4 4a1 1 0 0 0 1.42 0l4-4a1 1 0 0 0 0-1.42l-3-3 3-3a1 1 0 0 0 0-1.42Zm-5 10.88-2.59-2.59 2.59-2.59 2.59 2.59Zm0-8-2.59-2.59 2.59-2.59 2.59 2.59Z"/></svg>
-          Bluetooth Proximity
-        </span>
+        <div class="panel-head-left">
+          <span class="panel-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--purple)" style="flex-shrink:0"><path d="m17.71 7.71-4-4a1 1 0 0 0-1.42 0l-4 4a1 1 0 0 0 0 1.42l3 3-3 3a1 1 0 0 0 0 1.42l4 4a1 1 0 0 0 1.42 0l4-4a1 1 0 0 0 0-1.42l-3-3 3-3a1 1 0 0 0 0-1.42Zm-5 10.88-2.59-2.59 2.59-2.59 2.59 2.59Zm0-8-2.59-2.59 2.59-2.59 2.59 2.59Z"/></svg>
+            Bluetooth Proximity
+          </span>
+          <span class="panel-summary" id="ble-summary"></span>
+        </div>
         <span class="panel-badge" style="background:rgba(168,85,247,.12);color:var(--purple)" id="ble-count">-- devices</span>
+        <a class="panel-detail-link" href="detail-ble.html" onclick="event.stopPropagation()">View Details <span style="font-size:.8em">&#8594;</span></a>
       </div>
       <div class="panel-body">
         <div class="ble-wrap" id="ble-wrap">
@@ -415,13 +450,17 @@ a{color:var(--cyan);text-decoration:none}
   <div class="vi-row3">
 
     <!-- Panel 5: Risk Overview -->
-    <section class="panel" id="panel-risk" style="min-height:300px">
+    <section class="panel" id="panel-risk" style="min-height:300px" onclick="window.location.href='detail-risk.html'">
       <div class="panel-head">
-        <span class="panel-title">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--danger)" style="flex-shrink:0"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm1 15h-2v-2h2Zm0-4h-2V7h2Z"/></svg>
-          Risk Overview
-        </span>
+        <div class="panel-head-left">
+          <span class="panel-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--danger)" style="flex-shrink:0"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm1 15h-2v-2h2Zm0-4h-2V7h2Z"/></svg>
+            Risk Overview
+          </span>
+          <span class="panel-summary" id="risk-summary"></span>
+        </div>
         <span class="panel-badge" style="background:rgba(255,71,87,.12);color:var(--danger)" id="risk-high-count">-- high risk</span>
+        <a class="panel-detail-link" href="detail-risk.html" onclick="event.stopPropagation()">View Details <span style="font-size:.8em">&#8594;</span></a>
       </div>
       <div class="panel-body">
         <div class="risk-wrap" id="risk-wrap">
@@ -431,13 +470,16 @@ a{color:var(--cyan);text-decoration:none}
     </section>
 
     <!-- Panel 6: ESP32 CSI Preview -->
-    <section class="panel" id="panel-csi" style="min-height:300px">
+    <section class="panel" id="panel-csi" style="min-height:300px" onclick="window.location.href='detail-csi.html'">
       <div class="panel-head">
-        <span class="panel-title">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--warn)" style="flex-shrink:0"><path d="M17 8C8 10 5.9 16.17 3.82 20.34L5.71 21l1-2.3A4.49 4.49 0 0 0 8 19c9 0 11-13 11-13a17.73 17.73 0 0 1-2 2Z"/></svg>
-          ESP32 CSI Monitor
-        </span>
+        <div class="panel-head-left">
+          <span class="panel-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--warn)" style="flex-shrink:0"><path d="M17 8C8 10 5.9 16.17 3.82 20.34L5.71 21l1-2.3A4.49 4.49 0 0 0 8 19c9 0 11-13 11-13a17.73 17.73 0 0 1-2 2Z"/></svg>
+            ESP32 CSI Monitor
+          </span>
+        </div>
         <span class="standby-badge">Standby</span>
+        <a class="panel-detail-link" href="detail-csi.html" onclick="event.stopPropagation()">View Details <span style="font-size:.8em">&#8594;</span></a>
       </div>
       <div class="panel-body">
         <div class="csi-wrap">
@@ -467,36 +509,36 @@ a{color:var(--cyan);text-decoration:none}
 (function() {
 'use strict';
 
-// ── Constants ──────────────────────────────────────────────────────────────
-const COLORS = {
+// -- Constants --
+var COLORS = {
   bg: '#0a0e17', card: '#131a2b', border: '#1e2d4a',
   cyan: '#00d4ff', danger: '#ff4757', warn: '#ffa502', success: '#2ed573',
   purple: '#a855f7', blue: '#3b82f6',
   text: '#e8eaed', muted: '#8892a4', dim: '#4a5568'
 };
 
-const RISK_LOW = 0.3, RISK_MED = 0.6;
+var RISK_LOW = 0.3, RISK_MED = 0.6;
 
-// ── State ──────────────────────────────────────────────────────────────────
-let appData = null;
-let selectedMac = null;
-let radarAngle = 0;
-let rafId = null;
-let jitterSeed = 0;
-let csiPhase = 0;
-let bleRipplePhase = 0;
-let radarDevices = [];
+// -- State --
+var appData = null;
+var selectedMac = null;
+var radarAngle = 0;
+var rafId = null;
+var jitterSeed = 0;
+var csiPhase = 0;
+var bleRipplePhase = 0;
+var radarDevices = [];
 
-// ── Tooltip ────────────────────────────────────────────────────────────────
-const tooltip = document.getElementById('vi-tooltip');
-const ttTitle = document.getElementById('tt-title');
-const ttBody = document.getElementById('tt-body');
+// -- Tooltip --
+var tooltip = document.getElementById('vi-tooltip');
+var ttTitle = document.getElementById('tt-title');
+var ttBody = document.getElementById('tt-body');
 
 function showTooltip(e, title, rows) {
   ttTitle.textContent = title;
-  ttBody.innerHTML = rows.map(([l,v,cls]) =>
-    `<div class="tt-row"><span class="tt-lbl">${l}</span><span class="tt-val${cls?' '+cls:''}">${v}</span></div>`
-  ).join('');
+  ttBody.innerHTML = rows.map(function(r) {
+    return '<div class="tt-row"><span class="tt-lbl">' + r[0] + '</span><span class="tt-val' + (r[2] ? ' ' + r[2] : '') + '">' + r[1] + '</span></div>';
+  }).join('');
   tooltip.classList.add('visible');
   positionTooltip(e);
 }
@@ -506,19 +548,19 @@ function hideTooltip() {
 }
 
 function positionTooltip(e) {
-  const tw = 240, th = 150;
-  let x = e.clientX + 14, y = e.clientY + 14;
+  var tw = 240, th = 150;
+  var x = e.clientX + 14, y = e.clientY + 14;
   if (x + tw > window.innerWidth - 8) x = e.clientX - tw - 10;
   if (y + th > window.innerHeight - 8) y = e.clientY - th - 10;
   tooltip.style.left = x + 'px';
   tooltip.style.top = y + 'px';
 }
 
-document.addEventListener('mousemove', e => {
+document.addEventListener('mousemove', function(e) {
   if (tooltip.classList.contains('visible')) positionTooltip(e);
 });
 
-// ── Utilities ──────────────────────────────────────────────────────────────
+// -- Utilities --
 function rssiToPercent(rssi) {
   return Math.max(0, Math.min(100, ((rssi + 30) / 60) * 100));
 }
@@ -553,29 +595,29 @@ function dpr() {
 }
 
 function setupCanvas(canvas, w, h) {
-  const ratio = dpr();
+  var ratio = dpr();
   canvas.width = w * ratio;
   canvas.height = h * ratio;
   canvas.style.width = w + 'px';
   canvas.style.height = h + 'px';
-  const ctx = canvas.getContext('2d');
+  var ctx = canvas.getContext('2d');
   ctx.scale(ratio, ratio);
   return ctx;
 }
 
 function estimateDistance(rssi, txPower, type) {
-  const n = 2.7;
-  const tx = txPower != null ? txPower : (type === 'ap' ? -40 : -59);
-  const d = Math.pow(10, (tx - rssi) / (10 * n));
+  var n = 2.7;
+  var tx = txPower != null ? txPower : (type === 'ap' ? -40 : -59);
+  var d = Math.pow(10, (tx - rssi) / (10 * n));
   return Math.min(d, 20);
 }
 
-// ── Data Loading ───────────────────────────────────────────────────────────
+// -- Data Loading --
 async function loadData() {
   try {
-    const res = await fetch('data.json?_=' + Date.now());
+    var res = await fetch('data.json?_=' + Date.now());
     if (!res.ok) throw new Error('HTTP ' + res.status);
-    const raw = await res.json();
+    var raw = await res.json();
     return parseData(raw);
   } catch (err) {
     console.warn('data.json load error:', err);
@@ -584,7 +626,6 @@ async function loadData() {
 }
 
 function parseData(raw) {
-  // Handle both flat and DynamoDB-style formats
   function unwrap(v) {
     if (v === null || v === undefined) return v;
     if (typeof v !== 'object') return v;
@@ -594,96 +635,90 @@ function parseData(raw) {
     if ('BOOL' in v) return v.BOOL;
     if ('L' in v) return v.L.map(unwrap);
     if ('M' in v) {
-      const out = {};
-      for (const k in v.M) out[k] = unwrap(v.M[k]);
+      var out = {};
+      for (var k in v.M) out[k] = unwrap(v.M[k]);
       return out;
     }
-    const out = {};
-    for (const k in v) out[k] = unwrap(v[k]);
+    var out = {};
+    for (var k in v) out[k] = unwrap(v[k]);
     return out;
   }
   return unwrap(raw);
 }
 
-// ── Device Radar ───────────────────────────────────────────────────────────
+// -- Device Radar --
 function buildRadarDevices(data) {
   if (!data) return [];
-  const wifi = (data.devices || []).map((d, i) => ({
-    ...d, _proto: 'wifi', _idx: i
-  }));
-  const bt = (data.bluetooth_devices || []).map((d, i) => ({
-    mac_address: d.mac_address,
-    device_type: d.device_type === 'BLE' ? 'ble' : d.device_type === 'Beacon' ? 'beacon' : 'bt_classic',
-    vendor: d.manufacturer,
-    rssi_dbm: d.rssi_dbm,
-    channel: null,
-    bandwidth: 'BT',
-    risk_score: 0.1,
-    ssid: d.device_name || 'Unknown',
-    _proto: 'bt',
-    _idx: i,
-    _bt: d
-  }));
+  var wifi = (data.devices || []).map(function(d, i) {
+    return Object.assign({}, d, { _proto: 'wifi', _idx: i });
+  });
+  var bt = (data.bluetooth_devices || []).map(function(d, i) {
+    return {
+      mac_address: d.mac_address,
+      device_type: d.device_type === 'BLE' ? 'ble' : d.device_type === 'Beacon' ? 'beacon' : 'bt_classic',
+      vendor: d.manufacturer,
+      rssi_dbm: d.rssi_dbm,
+      channel: null,
+      bandwidth: 'BT',
+      risk_score: 0.1,
+      ssid: d.device_name || 'Unknown',
+      _proto: 'bt',
+      _idx: i,
+      _bt: d
+    };
+  });
 
-  // Assign polar positions
-  const wifiDevices = wifi.map((d, i) => {
-    const is5G = d.bandwidth === '5GHz';
-    // 2.4GHz: top-right quadrant (0 to 90deg), 5GHz: top-left (90 to 180deg)
-    const baseAngle = is5G ? (90 + (i / Math.max(wifi.length, 1)) * 80) : ((i / Math.max(wifi.length, 1)) * 80);
-    const angle = (baseAngle + (i * 17.3)) % 360;
-    const dist = estimateDistance(d.rssi_dbm, null, d.device_type);
-    return { ...d, _angle: angle * Math.PI / 180, _dist: dist };
+  var wifiDevices = wifi.map(function(d, i) {
+    var is5G = d.bandwidth === '5GHz';
+    var baseAngle = is5G ? (90 + (i / Math.max(wifi.length, 1)) * 80) : ((i / Math.max(wifi.length, 1)) * 80);
+    var angle = (baseAngle + (i * 17.3)) % 360;
+    var dist = estimateDistance(d.rssi_dbm, null, d.device_type);
+    return Object.assign({}, d, { _angle: angle * Math.PI / 180, _dist: dist });
   });
-  const btDevices = bt.map((d, i) => {
-    // BT: bottom half (180 to 360)
-    const angle = 180 + ((i / Math.max(bt.length, 1)) * 160);
-    const dist = estimateDistance(d.rssi_dbm, d._bt && d._bt.tx_power, 'phone');
-    return { ...d, _angle: angle * Math.PI / 180, _dist: dist };
+  var btDevices = bt.map(function(d, i) {
+    var angle = 180 + ((i / Math.max(bt.length, 1)) * 160);
+    var dist = estimateDistance(d.rssi_dbm, d._bt && d._bt.tx_power, 'phone');
+    return Object.assign({}, d, { _angle: angle * Math.PI / 180, _dist: dist });
   });
-  return [...wifiDevices, ...btDevices];
+  return wifiDevices.concat(btDevices);
 }
 
 function drawRadar(canvas, wrap, devices, sweep, selected) {
-  const W = wrap.clientWidth - 24;
-  const H = wrap.clientHeight - 24;
+  var W = wrap.clientWidth - 24;
+  var H = wrap.clientHeight - 24;
   if (W < 10 || H < 10) return;
-  const size = Math.min(W, H);
+  var size = Math.min(W, H);
 
   if (parseInt(canvas.style.width) !== size) {
     setupCanvas(canvas, size, size);
     canvas.style.position = 'relative';
   }
 
-  const ctx = canvas.getContext('2d');
-  const ratio = dpr();
+  var ctx = canvas.getContext('2d');
+  var ratio = dpr();
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
   ctx.clearRect(0, 0, size, size);
 
-  const cx = size / 2, cy = size / 2;
-  const maxR = size / 2 - 20;
-  const rings = [1, 3, 5, 10, 15]; // metres
-  const maxDist = 15;
+  var cx = size / 2, cy = size / 2;
+  var maxR = size / 2 - 20;
+  var rings = [1, 3, 5, 10, 15];
+  var maxDist = 15;
 
-  // Background
   ctx.fillStyle = '#080c14';
   ctx.fillRect(0, 0, size, size);
 
-  // Rings
-  rings.forEach((m, i) => {
-    const r = (m / maxDist) * maxR;
+  rings.forEach(function(m, i) {
+    var r = (m / maxDist) * maxR;
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.strokeStyle = i === 0 ? 'rgba(0,212,255,.15)' : 'rgba(30,45,74,.5)';
     ctx.lineWidth = i === 0 ? 1.5 : 1;
     ctx.stroke();
-
-    // Ring label
     ctx.fillStyle = 'rgba(136,146,164,.5)';
-    ctx.font = `${9 / ratio * dpr()}px SF Mono, Fira Code, monospace`;
+    ctx.font = (9 / ratio * dpr()) + 'px SF Mono, Fira Code, monospace';
     ctx.fillText(m + 'm', cx + r + 3, cy - 3);
   });
 
-  // Crosshair axes
   ctx.strokeStyle = 'rgba(30,45,74,.6)';
   ctx.lineWidth = 1;
   ctx.setLineDash([4, 4]);
@@ -691,25 +726,19 @@ function drawRadar(canvas, wrap, devices, sweep, selected) {
   ctx.beginPath(); ctx.moveTo(cx - maxR - 8, cy); ctx.lineTo(cx + maxR + 8, cy); ctx.stroke();
   ctx.setLineDash([]);
 
-  // Band quadrant labels
   ctx.fillStyle = 'rgba(0,212,255,.25)';
-  ctx.font = `${8.5 / ratio * dpr()}px system-ui, sans-serif`;
+  ctx.font = (8.5 / ratio * dpr()) + 'px system-ui, sans-serif';
   ctx.fillText('5GHz', cx - maxR + 4, cy - maxR + 16);
   ctx.fillStyle = 'rgba(255,165,2,.25)';
   ctx.fillText('2.4GHz', cx + maxR - 44, cy - maxR + 16);
   ctx.fillStyle = 'rgba(168,85,247,.25)';
   ctx.fillText('Bluetooth', cx - 30, cy + maxR - 6);
 
-  // Sweep glow
-  const grad = ctx.createConicalGradient
-    ? null // not standard; fallback below
-    : null;
-  // Manual sweep sector using arc
   ctx.save();
   ctx.translate(cx, cy);
-  ctx.rotate(-Math.PI / 2 + sweep); // 0deg = up
-  const sweepWidth = Math.PI / 6;
-  const gradient = ctx.createLinearGradient(0, 0, maxR, 0);
+  ctx.rotate(-Math.PI / 2 + sweep);
+  var sweepWidth = Math.PI / 6;
+  var gradient = ctx.createLinearGradient(0, 0, maxR, 0);
   gradient.addColorStop(0, 'rgba(0,212,255,.0)');
   gradient.addColorStop(1, 'rgba(0,212,255,.18)');
   ctx.beginPath();
@@ -718,7 +747,6 @@ function drawRadar(canvas, wrap, devices, sweep, selected) {
   ctx.closePath();
   ctx.fillStyle = gradient;
   ctx.fill();
-  // Sweep line
   ctx.beginPath();
   ctx.moveTo(0, 0);
   ctx.lineTo(maxR, 0);
@@ -727,7 +755,6 @@ function drawRadar(canvas, wrap, devices, sweep, selected) {
   ctx.stroke();
   ctx.restore();
 
-  // Center dot (sensor)
   ctx.beginPath();
   ctx.arc(cx, cy, 5, 0, Math.PI * 2);
   ctx.fillStyle = COLORS.cyan;
@@ -738,26 +765,23 @@ function drawRadar(canvas, wrap, devices, sweep, selected) {
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  // Devices
-  devices.forEach((d, i) => {
-    const dist = Math.min(d._dist, maxDist);
-    const r = (dist / maxDist) * maxR;
-    const rssiJ = d.rssi_dbm + jitter(i);
-    const distJ = estimateDistance(rssiJ, null, d.device_type);
-    const rJ = (Math.min(distJ, maxDist) / maxDist) * maxR;
-    const angle = d._angle - Math.PI / 2; // 0 = up
-    const x = cx + Math.cos(angle) * rJ;
-    const y = cy + Math.sin(angle) * rJ;
+  devices.forEach(function(d, i) {
+    var dist = Math.min(d._dist, maxDist);
+    var rssiJ = d.rssi_dbm + jitter(i);
+    var distJ = estimateDistance(rssiJ, null, d.device_type);
+    var rJ = (Math.min(distJ, maxDist) / maxDist) * maxR;
+    var angle = d._angle - Math.PI / 2;
+    var x = cx + Math.cos(angle) * rJ;
+    var y = cy + Math.sin(angle) * rJ;
 
-    let radius;
+    var radius;
     if (d.device_type === 'ap') radius = 7;
     else if (d.device_type === 'phone' || d.device_type === 'laptop') radius = 5;
     else if (d.device_type === 'iot') radius = 4;
     else radius = 4;
 
-    const col = d._proto === 'bt' ? COLORS.purple : riskColor(d.risk_score || 0);
+    var col = d._proto === 'bt' ? COLORS.purple : riskColor(d.risk_score || 0);
 
-    // Selection highlight
     if (selected === d.mac_address) {
       ctx.beginPath();
       ctx.arc(x, y, radius + 5, 0, Math.PI * 2);
@@ -766,8 +790,7 @@ function drawRadar(canvas, wrap, devices, sweep, selected) {
       ctx.stroke();
     }
 
-    // Glow
-    const glow = ctx.createRadialGradient(x, y, 0, x, y, radius + 4);
+    var glow = ctx.createRadialGradient(x, y, 0, x, y, radius + 4);
     glow.addColorStop(0, col + 'aa');
     glow.addColorStop(1, col + '00');
     ctx.beginPath();
@@ -775,30 +798,27 @@ function drawRadar(canvas, wrap, devices, sweep, selected) {
     ctx.fillStyle = glow;
     ctx.fill();
 
-    // Dot
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.fillStyle = col;
     ctx.fill();
 
-    // Store screen coords for hit testing
     d._sx = x; d._sy = y; d._sr = radius + 6;
   });
 }
 
-// ── Signal Gauges ──────────────────────────────────────────────────────────
-function drawGauge(canvas, rssi, animated) {
-  const size = 80;
-  const ctx = setupCanvas(canvas, size, size);
-  const cx = size / 2, cy = size / 2;
-  const radius = 32;
-  const startAngle = Math.PI * 0.75;     // 135deg
-  const endAngle   = Math.PI * 2.25;     // 405deg (270deg sweep)
-  const pct = rssiToPercent(rssi) / 100;
+// -- Signal Gauges --
+function drawGauge(canvas, rssi) {
+  var size = 80;
+  var ctx = setupCanvas(canvas, size, size);
+  var cx = size / 2, cy = size / 2;
+  var radius = 32;
+  var startAngle = Math.PI * 0.75;
+  var endAngle   = Math.PI * 2.25;
+  var pct = rssiToPercent(rssi) / 100;
 
   ctx.clearRect(0, 0, size, size);
 
-  // Track
   ctx.beginPath();
   ctx.arc(cx, cy, radius, startAngle, endAngle);
   ctx.strokeStyle = 'rgba(30,45,74,.8)';
@@ -806,11 +826,9 @@ function drawGauge(canvas, rssi, animated) {
   ctx.lineCap = 'round';
   ctx.stroke();
 
-  // Arc fill with gradient colour
-  const arcEnd = startAngle + pct * (endAngle - startAngle);
-  const col = rssiColor(rssi);
+  var arcEnd = startAngle + pct * (endAngle - startAngle);
+  var col = rssiColor(rssi);
 
-  // Glow effect on arc
   ctx.save();
   ctx.shadowColor = col;
   ctx.shadowBlur = 8 * pct;
@@ -822,66 +840,70 @@ function drawGauge(canvas, rssi, animated) {
   ctx.stroke();
   ctx.restore();
 
-  // RSSI text
   ctx.fillStyle = COLORS.text;
-  ctx.font = `bold ${11 / dpr() * dpr()}px SF Mono, Fira Code, monospace`;
+  ctx.font = 'bold ' + (11 / dpr() * dpr()) + 'px SF Mono, Fira Code, monospace';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(rssi + '', cx, cy);
-  ctx.font = `${7 / dpr() * dpr()}px system-ui`;
+  ctx.font = (7 / dpr() * dpr()) + 'px system-ui';
   ctx.fillStyle = COLORS.muted;
   ctx.fillText('dBm', cx, cy + 10);
 }
 
 function buildGauges(data) {
-  const grid = document.getElementById('gauge-grid');
+  var grid = document.getElementById('gauge-grid');
   grid.innerHTML = '';
   if (!data) { grid.innerHTML = '<div class="loading-wrap"><span style="color:var(--dim)">No data</span></div>'; return; }
 
-  const aps = (data.devices || []).filter(d => d.device_type === 'ap');
+  var aps = (data.devices || []).filter(function(d) { return d.device_type === 'ap'; });
   document.getElementById('gauge-ap-count').textContent = aps.length + ' APs';
+
+  var excellent = aps.filter(function(d) { return d.rssi_dbm >= -50; }).length;
+  var weak = aps.filter(function(d) { return d.rssi_dbm < -80; }).length;
+  var summaryEl = document.getElementById('gauge-summary');
+  if (summaryEl) summaryEl.textContent = excellent + ' excellent / ' + weak + ' weak';
 
   if (!aps.length) { grid.innerHTML = '<div class="loading-wrap"><span style="color:var(--dim)">No APs found</span></div>'; return; }
 
-  aps.forEach((ap, i) => {
-    const rssiJ = ap.rssi_dbm + jitter(i);
-    const ssidText = (!ap.ssid || ap.ssid === '-') ? 'Hidden' : ap.ssid;
-    const [qlabel, qcolor] = qualityLabel(ap.rssi_dbm);
+  aps.forEach(function(ap, i) {
+    var rssiJ = ap.rssi_dbm + jitter(i);
+    var ssidText = (!ap.ssid || ap.ssid === '-') ? 'Hidden' : ap.ssid;
+    var ql = qualityLabel(ap.rssi_dbm);
 
-    const item = document.createElement('div');
+    var item = document.createElement('div');
     item.className = 'gauge-item';
     item.dataset.mac = ap.mac_address;
 
-    const canvas = document.createElement('canvas');
+    var canvas = document.createElement('canvas');
     canvas.width = 80;
     canvas.height = 80;
-    drawGauge(canvas, rssiJ, false);
+    drawGauge(canvas, rssiJ);
     item.appendChild(canvas);
 
-    const ssidEl = document.createElement('div');
+    var ssidEl = document.createElement('div');
     ssidEl.className = 'gauge-ssid';
     ssidEl.textContent = ssidText;
     item.appendChild(ssidEl);
 
-    const qualEl = document.createElement('div');
+    var qualEl = document.createElement('div');
     qualEl.className = 'gauge-quality';
-    qualEl.style.color = qcolor;
-    qualEl.textContent = qlabel;
+    qualEl.style.color = ql[1];
+    qualEl.textContent = ql[0];
     item.appendChild(qualEl);
 
-    // Hover
-    item.addEventListener('mouseenter', e => {
+    item.addEventListener('mouseenter', function(e) {
       showTooltip(e, ap.mac_address, [
         ['SSID', ssidText],
         ['RSSI', ap.rssi_dbm + ' dBm'],
         ['Vendor', ap.vendor || 'Unknown'],
         ['Channel', ap.channel || '--'],
         ['Band', ap.bandwidth || '--'],
-        ['Quality', qlabel]
+        ['Quality', ql[0]]
       ]);
     });
     item.addEventListener('mouseleave', hideTooltip);
-    item.addEventListener('click', () => {
+    item.addEventListener('click', function(ev) {
+      ev.stopPropagation();
       selectedMac = selectedMac === ap.mac_address ? null : ap.mac_address;
     });
 
@@ -891,61 +913,71 @@ function buildGauges(data) {
 
 function updateGauges(data) {
   if (!data) return;
-  const aps = (data.devices || []).filter(d => d.device_type === 'ap');
-  const items = document.querySelectorAll('.gauge-item');
-  items.forEach((item, i) => {
+  var aps = (data.devices || []).filter(function(d) { return d.device_type === 'ap'; });
+  var items = document.querySelectorAll('.gauge-item');
+  items.forEach(function(item, i) {
     if (!aps[i]) return;
-    const ap = aps[i];
-    const rssiJ = ap.rssi_dbm + jitter(i);
-    const canvas = item.querySelector('canvas');
-    if (canvas) drawGauge(canvas, rssiJ, true);
+    var rssiJ = aps[i].rssi_dbm + jitter(i);
+    var canvas = item.querySelector('canvas');
+    if (canvas) drawGauge(canvas, rssiJ);
   });
 }
 
-// ── Channel Utilization ────────────────────────────────────────────────────
+// -- Channel Utilization --
 function drawChannels(canvas, data) {
   if (!data) return;
-  const wrap = canvas.parentElement;
-  const W = wrap.clientWidth - 24;
-  const H = wrap.clientHeight - 50; // minus legend
+  var wrap = canvas.parentElement;
+  var W = wrap.clientWidth - 24;
+  var H = wrap.clientHeight - 50;
   if (W < 10 || H < 10) return;
 
-  const ctx = setupCanvas(canvas, W, H);
+  var ctx = setupCanvas(canvas, W, H);
   ctx.clearRect(0, 0, W, H);
 
-  const devices = Array.isArray(data.devices) ? data.devices : [];
-  const channels24 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-  const channels5  = [36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161, 165];
+  var devices = Array.isArray(data.devices) ? data.devices : [];
+  var channels24 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+  var channels5  = [36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161, 165];
 
-  // Collect which channels actually have devices
-  const present24 = [...new Set(devices.filter(d => d.bandwidth === '2.4GHz').map(d => d.channel))].sort((a,b)=>a-b);
-  const present5  = [...new Set(devices.filter(d => d.bandwidth === '5GHz').map(d => d.channel))].sort((a,b)=>a-b);
+  var present24 = [].concat(new Set(devices.filter(function(d){ return d.bandwidth === '2.4GHz'; }).map(function(d){ return d.channel; }))).sort(function(a,b){return a-b;});
+  var present5  = [].concat(new Set(devices.filter(function(d){ return d.bandwidth === '5GHz'; }).map(function(d){ return d.channel; }))).sort(function(a,b){return a-b;});
 
-  const allChannels = [
-    ...channels24.filter(c => present24.includes(c)).map(c => ({ ch: c, band: '2.4GHz' })),
-    ...present5.map(c => ({ ch: c, band: '5GHz' }))
-  ];
+  var allChannels = channels24.filter(function(c) { return present24.indexOf(c) >= 0; }).map(function(c) { return { ch: c, band: '2.4GHz' }; })
+    .concat(present5.map(function(c) { return { ch: c, band: '5GHz' }; }));
+
+  // Also include channels from esp32 devices (they may not have bandwidth set)
+  var espDevices = devices.filter(function(d) { return d.channel > 0 && !d.bandwidth; });
+  espDevices.forEach(function(d) {
+    var ch = d.channel;
+    var exists = allChannels.some(function(ac) { return ac.ch === ch; });
+    if (!exists) {
+      allChannels.push({ ch: ch, band: ch <= 14 ? '2.4GHz' : '5GHz' });
+    }
+  });
+  allChannels.sort(function(a,b) { return a.ch - b.ch; });
+
   if (!allChannels.length) { ctx.fillStyle = COLORS.dim; ctx.font = '11px system-ui'; ctx.fillText('No channel data', W/2-40, H/2); return; }
 
-  const typeOrder = ['ap', 'phone', 'laptop', 'iot', 'unknown'];
-  const typeColors = { ap: COLORS.cyan, phone: COLORS.warn, laptop: COLORS.blue, iot: COLORS.success, unknown: COLORS.muted };
+  // Update summary
+  var summaryEl = document.getElementById('channel-summary');
+  if (summaryEl) summaryEl.textContent = '2.4G: ' + present24.length + ' / 5G: ' + present5.length;
 
-  // Count by channel x type
-  const counts = {};
-  allChannels.forEach(({ ch }) => { counts[ch] = {}; typeOrder.forEach(t => counts[ch][t] = 0); });
-  devices.forEach(d => {
+  var typeOrder = ['ap', 'phone', 'laptop', 'iot', 'unknown'];
+  var typeColors = { ap: COLORS.cyan, phone: COLORS.warn, laptop: COLORS.blue, iot: COLORS.success, unknown: COLORS.muted };
+
+  var counts = {};
+  allChannels.forEach(function(ac) { counts[ac.ch] = {}; typeOrder.forEach(function(t) { counts[ac.ch][t] = 0; }); });
+  devices.forEach(function(d) {
     if (counts[d.channel] !== undefined) {
-      const t = typeOrder.includes(d.device_type) ? d.device_type : 'unknown';
+      var t = typeOrder.indexOf(d.device_type) >= 0 ? d.device_type : 'unknown';
       counts[d.channel][t]++;
     }
   });
 
-  const maxTotal = Math.max(...allChannels.map(({ ch }) => Object.values(counts[ch]).reduce((a,b)=>a+b,0)));
-  const padL = 30, padB = 24, padT = 10, padR = 10;
-  const barW = Math.max(10, Math.floor((W - padL - padR) / allChannels.length) - 4);
-  const chartH = H - padT - padB;
+  var maxTotal = Math.max.apply(null, allChannels.map(function(ac) { return Object.values(counts[ac.ch]).reduce(function(a,b){return a+b;},0); }));
+  var padL = 30, padB = 24, padT = 10, padR = 10;
+  var barW = Math.max(10, Math.floor((W - padL - padR) / allChannels.length) - 4);
+  var chartH = H - padT - padB;
 
-  // Y axis
   ctx.strokeStyle = COLORS.border;
   ctx.lineWidth = 1;
   ctx.beginPath();
@@ -953,12 +985,11 @@ function drawChannels(canvas, data) {
   ctx.lineTo(padL, H - padB);
   ctx.stroke();
 
-  // Y ticks
-  const ticks = maxTotal <= 3 ? [0,1,2,3] : [0, Math.ceil(maxTotal/2), maxTotal];
-  ticks.forEach(t => {
-    const y = H - padB - (t / Math.max(maxTotal, 1)) * chartH;
+  var ticks = maxTotal <= 3 ? [0,1,2,3] : [0, Math.ceil(maxTotal/2), maxTotal];
+  ticks.forEach(function(t) {
+    var y = H - padB - (t / Math.max(maxTotal, 1)) * chartH;
     ctx.fillStyle = COLORS.dim;
-    ctx.font = `${8 / dpr() * dpr()}px SF Mono, monospace`;
+    ctx.font = (8 / dpr() * dpr()) + 'px SF Mono, monospace';
     ctx.textAlign = 'right';
     ctx.fillText(t, padL - 4, y + 3);
     ctx.strokeStyle = 'rgba(30,45,74,.3)';
@@ -970,10 +1001,9 @@ function drawChannels(canvas, data) {
     ctx.setLineDash([]);
   });
 
-  // Separator between 2.4 and 5 GHz bands
-  const last24Idx = allChannels.reduce((idx, { band }, i) => band === '2.4GHz' ? i : idx, -1);
+  var last24Idx = allChannels.reduce(function(idx, ac, i) { return ac.band === '2.4GHz' ? i : idx; }, -1);
   if (last24Idx >= 0 && last24Idx < allChannels.length - 1) {
-    const sepX = padL + (last24Idx + 1) * (barW + 4) - 2;
+    var sepX = padL + (last24Idx + 1) * (barW + 4) - 2;
     ctx.strokeStyle = 'rgba(30,45,74,.8)';
     ctx.lineWidth = 1;
     ctx.setLineDash([6,3]);
@@ -982,7 +1012,7 @@ function drawChannels(canvas, data) {
     ctx.stroke();
     ctx.setLineDash([]);
     ctx.fillStyle = 'rgba(168,85,247,.4)';
-    ctx.font = `${7.5 / dpr() * dpr()}px system-ui`;
+    ctx.font = (7.5 / dpr() * dpr()) + 'px system-ui';
     ctx.textAlign = 'left';
     ctx.fillText('5GHz', sepX + 4, padT + 10);
     ctx.fillStyle = 'rgba(255,165,2,.4)';
@@ -990,101 +1020,95 @@ function drawChannels(canvas, data) {
     ctx.fillText('2.4GHz', sepX - 4, padT + 10);
   }
 
-  // Bars
-  allChannels.forEach(({ ch, band }, i) => {
-    const total = Object.values(counts[ch]).reduce((a,b)=>a+b,0);
-    const congestion = total / Math.max(maxTotal, 1);
-    const x = padL + i * (barW + 4) + 2;
-    let yOff = 0;
-
-    typeOrder.forEach(type => {
-      const count = counts[ch][type];
+  allChannels.forEach(function(ac, i) {
+    var ch = ac.ch;
+    var x = padL + i * (barW + 4) + 2;
+    var yOff = 0;
+    typeOrder.forEach(function(type) {
+      var count = counts[ch][type];
       if (!count) return;
-      const barH = (count / Math.max(maxTotal, 1)) * chartH;
-      const y = H - padB - yOff - barH;
-
-      // Congestion tint
-      const baseCol = typeColors[type];
-      ctx.fillStyle = baseCol;
+      var barH = (count / Math.max(maxTotal, 1)) * chartH;
+      var y = H - padB - yOff - barH;
+      var congestion = Object.values(counts[ch]).reduce(function(a,b){return a+b;},0) / Math.max(maxTotal, 1);
+      ctx.fillStyle = typeColors[type];
       ctx.globalAlpha = 0.7 + congestion * 0.3;
       ctx.beginPath();
       ctx.roundRect(x, y, barW, barH, [2,2,0,0]);
       ctx.fill();
       ctx.globalAlpha = 1;
-
       yOff += barH;
     });
 
-    // X label
     ctx.fillStyle = COLORS.muted;
-    ctx.font = `${8 / dpr() * dpr()}px SF Mono, monospace`;
+    ctx.font = (8 / dpr() * dpr()) + 'px SF Mono, monospace';
     ctx.textAlign = 'center';
     ctx.fillText(ch, x + barW / 2, H - padB + 12);
   });
 
-  // Active channel count
   document.getElementById('channel-total').textContent = allChannels.length + ' channels active';
 }
 
-// ── BLE Proximity Rings ────────────────────────────────────────────────────
+// -- BLE Proximity Rings --
 function drawBLE(canvas, wrap, data, ripple) {
-  const W = wrap.clientWidth - 24;
-  const H = wrap.clientHeight - 24;
+  var W = wrap.clientWidth - 24;
+  var H = wrap.clientHeight - 24;
   if (W < 10 || H < 10) return;
-  const size = Math.min(W, H);
+  var size = Math.min(W, H);
 
   if (parseInt(canvas.style.width) !== size) {
     setupCanvas(canvas, size, size);
   }
 
-  const ctx = canvas.getContext('2d');
-  const ratio = dpr();
+  var ctx = canvas.getContext('2d');
+  var ratio = dpr();
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
   ctx.clearRect(0, 0, size, size);
 
-  const cx = size / 2, cy = size / 2;
-  const maxR = size / 2 - 30;
+  var cx = size / 2, cy = size / 2;
+  var maxR = size / 2 - 30;
 
   ctx.fillStyle = '#080c14';
   ctx.fillRect(0, 0, size, size);
 
-  const rings = [
+  var rings = [
     { label: 'Immediate', range: '<1m',   color: COLORS.success, rPct: 0.22 },
     { label: 'Near',      range: '1-3m',  color: COLORS.cyan,    rPct: 0.44 },
     { label: 'Far',       range: '3-10m', color: COLORS.warn,    rPct: 0.70 },
     { label: 'Remote',    range: '>10m',  color: COLORS.danger,  rPct: 1.00 }
   ];
 
-  const bts = (data && data.bluetooth_devices) || [];
+  var bts = (data && data.bluetooth_devices) || [];
   document.getElementById('ble-count').textContent = bts.length + ' devices';
 
-  // Animated ripple on each ring
-  rings.forEach((ring, ri) => {
-    const r = ring.rPct * maxR;
-    // Ripple wave
-    const rippleR = r + ((ripple + ri * 0.3) % 1) * 14;
-    const rippleAlpha = 1 - ((ripple + ri * 0.3) % 1);
+  // Update BLE summary
+  var mfrs = {};
+  bts.forEach(function(d) { var m = d.manufacturer || 'Unknown'; mfrs[m] = (mfrs[m]||0) + 1; });
+  var topMfr = Object.keys(mfrs).sort(function(a,b){ return mfrs[b]-mfrs[a]; })[0] || '';
+  var summaryEl = document.getElementById('ble-summary');
+  if (summaryEl && topMfr) summaryEl.textContent = topMfr + ': ' + mfrs[topMfr];
+
+  rings.forEach(function(ring, ri) {
+    var r = ring.rPct * maxR;
+    var rippleR = r + ((ripple + ri * 0.3) % 1) * 14;
+    var rippleAlpha = 1 - ((ripple + ri * 0.3) % 1);
     ctx.beginPath();
     ctx.arc(cx, cy, rippleR, 0, Math.PI * 2);
     ctx.strokeStyle = ring.color + Math.round(rippleAlpha * 30).toString(16).padStart(2,'0');
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    // Main ring
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.strokeStyle = ring.color + '44';
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    // Label
     ctx.fillStyle = ring.color + '88';
-    ctx.font = `${8.5 / ratio * dpr()}px system-ui`;
+    ctx.font = (8.5 / ratio * dpr()) + 'px system-ui';
     ctx.textAlign = 'left';
     ctx.fillText(ring.label + ' ' + ring.range, cx + r * Math.cos(-0.3) + 3, cy + r * Math.sin(-0.3));
   });
 
-  // Assign devices to rings
   function getDeviceRing(rssi) {
     if (rssi > -50) return 0;
     if (rssi > -70) return 1;
@@ -1092,19 +1116,17 @@ function drawBLE(canvas, wrap, data, ripple) {
     return 3;
   }
 
-  // Spread devices evenly around each ring
-  const ringDevices = [[], [], [], []];
-  bts.forEach(d => ringDevices[getDeviceRing(d.rssi_dbm)].push(d));
+  var ringDevices = [[], [], [], []];
+  bts.forEach(function(d) { ringDevices[getDeviceRing(d.rssi_dbm)].push(d); });
 
-  ringDevices.forEach((devs, ri) => {
-    const ring = rings[ri];
-    const r = ring.rPct * maxR;
-    devs.forEach((d, di) => {
-      const angle = (di / Math.max(devs.length, 1)) * Math.PI * 2 - Math.PI / 2;
-      const x = cx + Math.cos(angle) * r;
-      const y = cy + Math.sin(angle) * r;
+  ringDevices.forEach(function(devs, ri) {
+    var ring = rings[ri];
+    var r = ring.rPct * maxR;
+    devs.forEach(function(d, di) {
+      var angle = (di / Math.max(devs.length, 1)) * Math.PI * 2 - Math.PI / 2;
+      var x = cx + Math.cos(angle) * r;
+      var y = cy + Math.sin(angle) * r;
 
-      // Device node
       ctx.beginPath();
       ctx.arc(x, y, 5, 0, Math.PI * 2);
       if (d.is_connectable) {
@@ -1124,175 +1146,145 @@ function drawBLE(canvas, wrap, data, ripple) {
         ctx.fill();
       }
 
-      // Label
-      const name = d.device_name || 'Unknown';
-      ctx.font = `${8 / ratio * dpr()}px system-ui`;
+      var name = d.device_name || 'Unknown';
+      ctx.font = (8 / ratio * dpr()) + 'px system-ui';
       ctx.fillStyle = COLORS.muted;
       ctx.textAlign = x < cx ? 'right' : 'left';
-      const labelX = x < cx ? x - 8 : x + 8;
-      ctx.fillText(name.length > 12 ? name.slice(0,12)+'…' : name, labelX, y + 3);
+      var labelX = x < cx ? x - 8 : x + 8;
+      ctx.fillText(name.length > 12 ? name.slice(0,12) + '...' : name, labelX, y + 3);
     });
   });
 }
 
-// ── Risk Overview ──────────────────────────────────────────────────────────
+// -- Risk Overview --
 function buildRisk(data) {
-  const wrap = document.getElementById('risk-wrap');
+  var wrap = document.getElementById('risk-wrap');
   if (!data) { wrap.innerHTML = '<div class="loading-wrap"><span style="color:var(--dim)">No data</span></div>'; return; }
 
-  const devices = data.devices || [];
-  const low = devices.filter(d => d.risk_score < RISK_LOW);
-  const med = devices.filter(d => d.risk_score >= RISK_LOW && d.risk_score < RISK_MED);
-  const high = devices.filter(d => d.risk_score >= RISK_MED);
+  var devices = data.devices || [];
+  var low = devices.filter(function(d) { return parseFloat(d.risk_score) < RISK_LOW; });
+  var med = devices.filter(function(d) { var r = parseFloat(d.risk_score); return r >= RISK_LOW && r < RISK_MED; });
+  var high = devices.filter(function(d) { return parseFloat(d.risk_score) >= RISK_MED; });
 
   document.getElementById('risk-high-count').textContent = high.length + ' high risk';
 
-  wrap.innerHTML = `
-    <div class="risk-top">
-      <div class="risk-donut-wrap">
-        <canvas id="risk-donut" width="100" height="100"></canvas>
-      </div>
-      <div class="risk-legend">
-        <div class="risk-leg-item">
-          <span class="risk-leg-swatch" style="background:${COLORS.success}"></span>
-          <span class="risk-leg-label">Low risk (&lt;0.3)</span>
-          <span class="risk-leg-count" style="color:${COLORS.success}">${low.length}</span>
-        </div>
-        <div class="risk-leg-item">
-          <span class="risk-leg-swatch" style="background:${COLORS.warn}"></span>
-          <span class="risk-leg-label">Medium (0.3-0.6)</span>
-          <span class="risk-leg-count" style="color:${COLORS.warn}">${med.length}</span>
-        </div>
-        <div class="risk-leg-item">
-          <span class="risk-leg-swatch" style="background:${COLORS.danger}"></span>
-          <span class="risk-leg-label">High risk (&gt;0.6)</span>
-          <span class="risk-leg-count" style="color:${COLORS.danger}">${high.length}</span>
-        </div>
-        <div style="margin-top:4px;padding-top:8px;border-top:1px solid var(--border)">
-          <div class="risk-bar-label">Distribution</div>
-          <div class="risk-bar">
-            <div class="risk-bar-seg" style="background:${COLORS.success};width:${(low.length/Math.max(devices.length,1))*100}%"></div>
-            <div class="risk-bar-seg" style="background:${COLORS.warn};width:${(med.length/Math.max(devices.length,1))*100}%"></div>
-            <div class="risk-bar-seg" style="background:${COLORS.danger};width:${(high.length/Math.max(devices.length,1))*100}%"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="high-cards" id="high-cards">
-      ${high.map(d => `
-        <div class="high-card">
-          <div class="hc-mac">${d.mac_address}</div>
-          <div class="hc-ssid">${(!d.ssid || d.ssid==='-') ? 'Hidden' : d.ssid}</div>
-          <div class="hc-row">
-            <span style="color:var(--danger)">Risk ${(d.risk_score*100).toFixed(0)}%</span>
-            <span>${d.vendor || 'Unknown'}</span>
-          </div>
-        </div>
-      `).join('')}
-      ${high.length === 0 ? '<div style="color:var(--dim);font-size:.75rem;grid-column:1/-1;text-align:center;padding:16px">No high-risk devices</div>' : ''}
-    </div>
-  `;
+  // Update risk summary
+  var rogue = devices.filter(function(d) { return parseFloat(d.risk_score) >= 0.7; }).length;
+  var summaryEl = document.getElementById('risk-summary');
+  if (summaryEl) summaryEl.textContent = devices.length + ' APs / ' + rogue + ' rogue';
 
-  // Draw donut
-  const donut = document.getElementById('risk-donut');
+  wrap.innerHTML = '<div class="risk-top">' +
+    '<div class="risk-donut-wrap"><canvas id="risk-donut" width="100" height="100"></canvas></div>' +
+    '<div class="risk-legend">' +
+      '<div class="risk-leg-item"><span class="risk-leg-swatch" style="background:' + COLORS.success + '"></span><span class="risk-leg-label">Low risk (&lt;0.3)</span><span class="risk-leg-count" style="color:' + COLORS.success + '">' + low.length + '</span></div>' +
+      '<div class="risk-leg-item"><span class="risk-leg-swatch" style="background:' + COLORS.warn + '"></span><span class="risk-leg-label">Medium (0.3-0.6)</span><span class="risk-leg-count" style="color:' + COLORS.warn + '">' + med.length + '</span></div>' +
+      '<div class="risk-leg-item"><span class="risk-leg-swatch" style="background:' + COLORS.danger + '"></span><span class="risk-leg-label">High risk (&gt;0.6)</span><span class="risk-leg-count" style="color:' + COLORS.danger + '">' + high.length + '</span></div>' +
+      '<div style="margin-top:4px;padding-top:8px;border-top:1px solid var(--border)">' +
+        '<div class="risk-bar-label">Distribution</div>' +
+        '<div class="risk-bar">' +
+          '<div class="risk-bar-seg" style="background:' + COLORS.success + ';width:' + ((low.length/Math.max(devices.length,1))*100) + '%"></div>' +
+          '<div class="risk-bar-seg" style="background:' + COLORS.warn + ';width:' + ((med.length/Math.max(devices.length,1))*100) + '%"></div>' +
+          '<div class="risk-bar-seg" style="background:' + COLORS.danger + ';width:' + ((high.length/Math.max(devices.length,1))*100) + '%"></div>' +
+        '</div></div></div></div>' +
+    '<div class="high-cards" id="high-cards">' +
+    high.map(function(d) {
+      return '<div class="high-card"><div class="hc-mac">' + d.mac_address + '</div>' +
+        '<div class="hc-ssid">' + ((!d.ssid || d.ssid==='-') ? 'Hidden' : d.ssid) + '</div>' +
+        '<div class="hc-row"><span style="color:var(--danger)">Risk ' + (parseFloat(d.risk_score)*100).toFixed(0) + '%</span><span>' + (d.vendor || 'Unknown') + '</span></div></div>';
+    }).join('') +
+    (high.length === 0 ? '<div style="color:var(--dim);font-size:.75rem;grid-column:1/-1;text-align:center;padding:16px">No high-risk devices</div>' : '') +
+    '</div>';
+
+  var donut = document.getElementById('risk-donut');
   if (!donut) return;
-  const ctx = setupCanvas(donut, 100, 100);
-  const cx = 50, cy = 50, r = 36, lineW = 10;
-  const total = devices.length || 1;
-  const segments = [
+  var ctx = setupCanvas(donut, 100, 100);
+  var ccx = 50, ccy = 50, r = 36, lineW = 10;
+  var total = devices.length || 1;
+  var segments = [
     { count: low.length, color: COLORS.success },
     { count: med.length, color: COLORS.warn },
     { count: high.length, color: COLORS.danger }
   ];
 
   ctx.clearRect(0,0,100,100);
-  let angle = -Math.PI / 2;
-  segments.forEach(({ count, color }) => {
-    const sweep = (count / total) * Math.PI * 2;
+  var angle = -Math.PI / 2;
+  segments.forEach(function(seg) {
+    var sweep = (seg.count / total) * Math.PI * 2;
     if (sweep < 0.01) return;
     ctx.beginPath();
-    ctx.arc(cx, cy, r, angle, angle + sweep);
-    ctx.strokeStyle = color;
+    ctx.arc(ccx, ccy, r, angle, angle + sweep);
+    ctx.strokeStyle = seg.color;
     ctx.lineWidth = lineW;
     ctx.lineCap = 'butt';
     ctx.stroke();
     angle += sweep;
   });
 
-  // Gap between segments
   ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.arc(ccx, ccy, r, 0, Math.PI * 2);
   ctx.strokeStyle = COLORS.card;
   ctx.lineWidth = 2;
   ctx.setLineDash([0.5, (Math.PI * 2 * r - 0.5) / 3]);
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // Center text
   ctx.fillStyle = COLORS.text;
-  ctx.font = `bold ${13 / dpr() * dpr()}px SF Mono, monospace`;
+  ctx.font = 'bold ' + (13 / dpr() * dpr()) + 'px SF Mono, monospace';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(devices.length, cx, cy - 4);
-  ctx.font = `${8 / dpr() * dpr()}px system-ui`;
+  ctx.fillText(devices.length, ccx, ccy - 4);
+  ctx.font = (8 / dpr() * dpr()) + 'px system-ui';
   ctx.fillStyle = COLORS.muted;
-  ctx.fillText('devices', cx, cy + 8);
+  ctx.fillText('devices', ccx, ccy + 8);
 }
 
-// ── CSI Preview ────────────────────────────────────────────────────────────
+// -- CSI Preview --
 function drawCSI(phase) {
-  const canvas = document.getElementById('csi-canvas');
-  const phaseCanvas = document.getElementById('csi-phase-canvas');
+  var canvas = document.getElementById('csi-canvas');
+  var phaseCanvas = document.getElementById('csi-phase-canvas');
   if (!canvas || !phaseCanvas) return;
 
-  const wrap = canvas.parentElement;
-  const W = wrap.clientWidth - 24;
-  const H = Math.max(80, wrap.clientHeight - 120);
+  var wrap = canvas.parentElement;
+  var W = wrap.clientWidth - 24;
+  var H = Math.max(80, wrap.clientHeight - 120);
   if (W < 10) return;
 
-  // Amplitude display
-  const ctx = setupCanvas(canvas, W, H);
+  var ctx = setupCanvas(canvas, W, H);
   ctx.clearRect(0, 0, W, H);
 
-  const N = 64;
-  const padL = 28, padB = 20, padT = 8, padR = 8;
-  const chartW = W - padL - padR;
-  const chartH = H - padT - padB;
+  var N = 64;
+  var padL = 28, padB = 20, padT = 8, padR = 8;
+  var chartW = W - padL - padR;
+  var chartH = H - padT - padB;
 
-  // Grid
   ctx.strokeStyle = 'rgba(30,45,74,.4)';
   ctx.lineWidth = 1;
   ctx.setLineDash([3,3]);
-  [0.25, 0.5, 0.75, 1].forEach(t => {
-    const y = padT + (1 - t) * chartH;
+  [0.25, 0.5, 0.75, 1].forEach(function(t) {
+    var y = padT + (1 - t) * chartH;
     ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
     ctx.fillStyle = COLORS.dim;
-    ctx.font = `${8 / dpr() * dpr()}px SF Mono, monospace`;
+    ctx.font = (8 / dpr() * dpr()) + 'px SF Mono, monospace';
     ctx.textAlign = 'right';
     ctx.fillText(t.toFixed(2), padL - 3, y + 3);
   });
   ctx.setLineDash([]);
 
-  // Waveform
-  const pts = [];
-  for (let i = 0; i < N; i++) {
-    const noise = (Math.sin(i * 47.3 + phase * 3.7) * 0.03);
-    const amp = 0.5
-      + 0.3 * Math.sin(i * 0.15 + phase)
-      + 0.1 * Math.sin(i * 0.4 + phase * 1.3)
-      + noise;
+  var pts = [];
+  for (var i = 0; i < N; i++) {
+    var noise = (Math.sin(i * 47.3 + phase * 3.7) * 0.03);
+    var amp = 0.5 + 0.3 * Math.sin(i * 0.15 + phase) + 0.1 * Math.sin(i * 0.4 + phase * 1.3) + noise;
     pts.push(Math.max(0, Math.min(1, amp)));
   }
 
-  // Gradient fill
-  const grad = ctx.createLinearGradient(0, padT, 0, padT + chartH);
+  var grad = ctx.createLinearGradient(0, padT, 0, padT + chartH);
   grad.addColorStop(0, 'rgba(0,212,255,.3)');
   grad.addColorStop(1, 'rgba(0,212,255,.0)');
 
   ctx.beginPath();
-  pts.forEach((amp, i) => {
-    const x = padL + (i / (N - 1)) * chartW;
-    const y = padT + (1 - amp) * chartH;
+  pts.forEach(function(amp, i) {
+    var x = padL + (i / (N - 1)) * chartW;
+    var y = padT + (1 - amp) * chartH;
     if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
   });
   ctx.lineTo(padL + chartW, padT + chartH);
@@ -1301,48 +1293,43 @@ function drawCSI(phase) {
   ctx.fillStyle = grad;
   ctx.fill();
 
-  // Line
   ctx.beginPath();
-  pts.forEach((amp, i) => {
-    const x = padL + (i / (N - 1)) * chartW;
-    const y = padT + (1 - amp) * chartH;
+  pts.forEach(function(amp, i) {
+    var x = padL + (i / (N - 1)) * chartW;
+    var y = padT + (1 - amp) * chartH;
     if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
   });
   ctx.strokeStyle = COLORS.cyan;
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
-  // X labels
   ctx.fillStyle = COLORS.dim;
-  ctx.font = `${8 / dpr() * dpr()}px SF Mono, monospace`;
+  ctx.font = (8 / dpr() * dpr()) + 'px SF Mono, monospace';
   ctx.textAlign = 'center';
-  [0, 16, 32, 48, 63].forEach(i => {
-    ctx.fillText(i, padL + (i / (N-1)) * chartW, H - padB + 11);
+  [0, 16, 32, 48, 63].forEach(function(idx) {
+    ctx.fillText(idx, padL + (idx / (N-1)) * chartW, H - padB + 11);
   });
 
-  // Phase strip
-  const phasePts = pts.map((amp, i) => (i * 5.7 + phase * 57.3) % 360);
-  const pctx = setupCanvas(phaseCanvas, W, 16);
+  var phasePts = pts.map(function(amp, i) { return (i * 5.7 + phase * 57.3) % 360; });
+  var pctx = setupCanvas(phaseCanvas, W, 16);
   pctx.clearRect(0, 0, W, 16);
-  phasePts.forEach((deg, i) => {
-    const hue = deg;
-    const x = (i / (N - 1)) * W;
-    const w = W / N + 1;
-    pctx.fillStyle = `hsl(${hue},80%,55%)`;
+  phasePts.forEach(function(deg, i) {
+    var x = (i / (N - 1)) * W;
+    var w = W / N + 1;
+    pctx.fillStyle = 'hsl(' + deg + ',80%,55%)';
     pctx.fillRect(x, 0, w, 16);
   });
 }
 
-// ── Animation Loop ─────────────────────────────────────────────────────────
-let lastFrameTime = 0;
-const RADAR_SPEED = (Math.PI * 2) / (4 * 60); // 4s full rotation at 60fps
+// -- Animation Loop --
+var lastFrameTime = 0;
+var RADAR_SPEED = (Math.PI * 2) / (4 * 60);
 
 function frame(ts) {
   rafId = requestAnimationFrame(frame);
-  const dt = ts - lastFrameTime;
+  var dt = ts - lastFrameTime;
   lastFrameTime = ts;
 
-  // Update angles / phases
   radarAngle = (radarAngle + RADAR_SPEED) % (Math.PI * 2);
   bleRipplePhase = (bleRipplePhase + 0.004) % 1;
   csiPhase += 0.018;
@@ -1350,76 +1337,72 @@ function frame(ts) {
 
   if (!appData) return;
 
-  // Radar
-  const radarCanvas = document.getElementById('radar-canvas');
-  const radarWrap = document.getElementById('radar-wrap');
+  var radarCanvas = document.getElementById('radar-canvas');
+  var radarWrap = document.getElementById('radar-wrap');
   if (radarCanvas && radarWrap) {
     drawRadar(radarCanvas, radarWrap, radarDevices, radarAngle, selectedMac);
   }
 
-  // Gauges (throttle to ~10fps for perf)
   if (Math.floor(ts / 100) !== Math.floor((ts - dt) / 100)) {
     updateGauges(appData);
   }
 
-  // BLE
-  const bleCanvas = document.getElementById('ble-canvas');
-  const bleWrap = document.getElementById('ble-wrap');
+  var bleCanvas = document.getElementById('ble-canvas');
+  var bleWrap = document.getElementById('ble-wrap');
   if (bleCanvas && bleWrap) {
     drawBLE(bleCanvas, bleWrap, appData, bleRipplePhase);
   }
 
-  // Channel (throttle to ~2fps — mostly static)
   if (Math.floor(ts / 500) !== Math.floor((ts - dt) / 500)) {
-    const chCanvas = document.getElementById('channel-canvas');
+    var chCanvas = document.getElementById('channel-canvas');
     if (chCanvas) drawChannels(chCanvas, appData);
   }
 
-  // CSI always animates
   drawCSI(csiPhase);
 }
 
-// ── Resize Handling ────────────────────────────────────────────────────────
-const resizeObserver = new ResizeObserver(() => {
+// -- Resize Handling --
+var resizeObserver = new ResizeObserver(function() {
   if (!appData) return;
-  const chCanvas = document.getElementById('channel-canvas');
+  var chCanvas = document.getElementById('channel-canvas');
   if (chCanvas) drawChannels(chCanvas, appData);
 });
 
 function observePanels() {
-  ['panel-channel', 'panel-radar', 'panel-ble'].forEach(id => {
-    const el = document.getElementById(id);
+  ['panel-channel', 'panel-radar', 'panel-ble'].forEach(function(id) {
+    var el = document.getElementById(id);
     if (el) resizeObserver.observe(el);
   });
 }
 
-// ── Radar Mouse Interaction ────────────────────────────────────────────────
+// -- Radar Mouse Interaction --
 function setupRadarInteraction() {
-  const canvas = document.getElementById('radar-canvas');
+  var canvas = document.getElementById('radar-canvas');
   if (!canvas) return;
 
-  canvas.addEventListener('mousemove', e => {
-    const rect = canvas.getBoundingClientRect();
-    const mx = (e.clientX - rect.left) * (canvas.width / rect.width / dpr());
-    const my = (e.clientY - rect.top) * (canvas.height / rect.height / dpr());
+  canvas.addEventListener('mousemove', function(e) {
+    var rect = canvas.getBoundingClientRect();
+    var mx = (e.clientX - rect.left) * (canvas.width / rect.width / dpr());
+    var my = (e.clientY - rect.top) * (canvas.height / rect.height / dpr());
 
-    let found = null;
-    for (const d of radarDevices) {
+    var found = null;
+    for (var i = 0; i < radarDevices.length; i++) {
+      var d = radarDevices[i];
       if (d._sx == null) continue;
-      const dx = mx - d._sx, dy = my - d._sy;
+      var dx = mx - d._sx, dy = my - d._sy;
       if (Math.sqrt(dx*dx + dy*dy) <= d._sr) { found = d; break; }
     }
 
     if (found) {
       canvas.style.cursor = 'pointer';
-      const ssid = (!found.ssid || found.ssid === '-') ? 'Hidden' : found.ssid;
+      var ssid = (!found.ssid || found.ssid === '-') ? 'Hidden' : found.ssid;
       showTooltip(e, found.mac_address, [
         ['Type', found.device_type],
         ['Vendor', found.vendor || 'Unknown'],
         ['RSSI', (found.rssi_dbm + jitter(found._idx)).toFixed(0) + ' dBm'],
         ['SSID', ssid],
-        ['Band', found.bandwidth || found._proto === 'bt' ? 'BT' : '--'],
-        ['Risk', found.risk_score != null ? (found.risk_score*100).toFixed(0)+'%' : '--']
+        ['Band', found.bandwidth || (found._proto === 'bt' ? 'BT' : '--')],
+        ['Risk', found.risk_score != null ? (parseFloat(found.risk_score)*100).toFixed(0)+'%' : '--']
       ]);
     } else {
       canvas.style.cursor = 'default';
@@ -1429,13 +1412,15 @@ function setupRadarInteraction() {
 
   canvas.addEventListener('mouseleave', hideTooltip);
 
-  canvas.addEventListener('click', e => {
-    const rect = canvas.getBoundingClientRect();
-    const mx = (e.clientX - rect.left) * (canvas.width / rect.width / dpr());
-    const my = (e.clientY - rect.top) * (canvas.height / rect.height / dpr());
-    for (const d of radarDevices) {
+  canvas.addEventListener('click', function(e) {
+    e.stopPropagation();
+    var rect = canvas.getBoundingClientRect();
+    var mx = (e.clientX - rect.left) * (canvas.width / rect.width / dpr());
+    var my = (e.clientY - rect.top) * (canvas.height / rect.height / dpr());
+    for (var i = 0; i < radarDevices.length; i++) {
+      var d = radarDevices[i];
       if (d._sx == null) continue;
-      const dx = mx - d._sx, dy = my - d._sy;
+      var dx = mx - d._sx, dy = my - d._sy;
       if (Math.sqrt(dx*dx + dy*dy) <= d._sr) {
         selectedMac = selectedMac === d.mac_address ? null : d.mac_address;
         return;
@@ -1445,57 +1430,46 @@ function setupRadarInteraction() {
   });
 }
 
-// ── WebSocket Real-Time Connection ────────────────────────────────────────
-const WS_URL = 'wss://ep8zonl28l.execute-api.eu-west-2.amazonaws.com/prod';
-const AUTH_TOKEN = 'mvp-token';
-const INITIAL_BACKOFF = 500;
-const MAX_BACKOFF = 15000;
-const POLL_INTERVAL = 1000; // 1s fallback polling when WS down
+// -- WebSocket Real-Time Connection --
+var WS_URL = 'wss://ep8zonl28l.execute-api.eu-west-2.amazonaws.com/prod';
+var AUTH_TOKEN = 'mvp-token';
+var INITIAL_BACKOFF = 500;
+var MAX_BACKOFF = 15000;
+var POLL_INTERVAL = 1000;
 
-let ws = null;
-let wsBackoff = INITIAL_BACKOFF;
-let wsReconnectTimer = null;
-let wsIntentionallyClosed = false;
-let pollTimer = null;
+var ws = null;
+var wsBackoff = INITIAL_BACKOFF;
+var wsReconnectTimer = null;
+var wsIntentionallyClosed = false;
+var pollTimer = null;
 
 function setWsStatus(connected) {
-  const dot = document.getElementById('ws-dot');
-  const txt = document.getElementById('ws-status-text');
-  if (dot) {
-    dot.className = connected ? 'status-dot live' : 'status-dot dead';
-  }
-  if (txt) {
-    txt.textContent = connected ? 'Live' : 'Polling';
-  }
-  // Switch between WS streaming and poll fallback
+  var dot = document.getElementById('ws-dot');
+  var txt = document.getElementById('ws-status-text');
+  if (dot) dot.className = connected ? 'status-dot live' : 'status-dot dead';
+  if (txt) txt.textContent = connected ? 'Live' : 'Polling';
   if (connected) {
     if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
   } else {
-    if (!pollTimer) {
-      pollTimer = setInterval(refreshFromFile, POLL_INTERVAL);
-    }
+    if (!pollTimer) pollTimer = setInterval(refreshFromFile, POLL_INTERVAL);
   }
 }
 
 function connectWebSocket() {
   wsIntentionallyClosed = false;
   cleanupWs();
-  const url = WS_URL + '?token=' + encodeURIComponent(AUTH_TOKEN);
+  var url = WS_URL + '?token=' + encodeURIComponent(AUTH_TOKEN);
   try { ws = new WebSocket(url); } catch (_) { scheduleReconnect(); return; }
 
   ws.onopen = function() {
     wsBackoff = INITIAL_BACKOFF;
     setWsStatus(true);
-    // Subscribe to current session
-    const sid = appData && appData.session ? appData.session.session_id : null;
+    var sid = appData && appData.session ? appData.session.session_id : null;
     if (sid) wsSend('subscribe', { session_id: sid });
   };
 
   ws.onmessage = function(evt) {
-    try {
-      const msg = JSON.parse(evt.data);
-      handleWsMessage(msg);
-    } catch(_) {}
+    try { handleWsMessage(JSON.parse(evt.data)); } catch(_) {}
   };
 
   ws.onclose = function() {
@@ -1523,21 +1497,20 @@ function scheduleReconnect() {
 
 function wsSend(action, payload) {
   if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ action, ...payload }));
+    ws.send(JSON.stringify(Object.assign({ action: action }, payload)));
   }
 }
 
 function handleWsMessage(msg) {
   updateTimestamp();
   if (!appData) return;
-
   switch (msg.type) {
     case 'map_update':
       if (msg.data) appData.map = msg.data;
       break;
     case 'device_update':
       if (msg.data && appData.devices) {
-        const idx = appData.devices.findIndex(d => d.mac_address === msg.data.mac_address);
+        var idx = appData.devices.findIndex(function(d) { return d.mac_address === msg.data.mac_address; });
         if (idx >= 0) appData.devices[idx] = msg.data;
         else appData.devices.push(msg.data);
       }
@@ -1550,13 +1523,12 @@ function handleWsMessage(msg) {
       break;
     case 'bluetooth_update':
       if (msg.data && appData.bluetooth_devices) {
-        const idx = appData.bluetooth_devices.findIndex(d => d.mac_address === msg.data.mac_address);
-        if (idx >= 0) appData.bluetooth_devices[idx] = msg.data;
+        var bidx = appData.bluetooth_devices.findIndex(function(d) { return d.mac_address === msg.data.mac_address; });
+        if (bidx >= 0) appData.bluetooth_devices[bidx] = msg.data;
         else appData.bluetooth_devices.push(msg.data);
       }
       break;
   }
-  // Rebuild visuals immediately on any WS message
   rebuildVisuals();
 }
 
@@ -1565,54 +1537,50 @@ function updateTimestamp() {
     new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' });
 }
 
-// Keep-alive ping every 25s
 setInterval(function() {
   if (ws && ws.readyState === WebSocket.OPEN) wsSend('ping', {});
 }, 25000);
 
-// ── Data Refresh ───────────────────────────────────────────────────────────
+// -- Data Refresh --
 function rebuildVisuals() {
   if (!appData) return;
-  const session = appData.session || {};
+  var session = appData.session || {};
   document.getElementById('session-label').textContent = session.name || session.session_id || 'Unknown';
   updateTimestamp();
-  document.getElementById('radar-count').textContent = ((appData.devices||[]).length + (appData.bluetooth_devices||[]).length) + ' devices';
+
+  var wifiCount = (appData.devices||[]).length;
+  var btCount = (appData.bluetooth_devices||[]).length;
+  document.getElementById('radar-count').textContent = (wifiCount + btCount) + ' devices';
+  var summaryEl = document.getElementById('radar-summary');
+  if (summaryEl) summaryEl.textContent = wifiCount + ' WiFi / ' + btCount + ' BLE';
 
   radarDevices = buildRadarDevices(appData);
   buildGauges(appData);
   buildRisk(appData);
 
-  const chCanvas = document.getElementById('channel-canvas');
+  var chCanvas = document.getElementById('channel-canvas');
   if (chCanvas) drawChannels(chCanvas, appData);
 }
 
 async function refreshFromFile() {
-  const data = await loadData();
+  var data = await loadData();
   if (!data) return;
   appData = data;
   rebuildVisuals();
 }
 
-// ── Bootstrap ─────────────────────────────────────────────────────────────
+// -- Bootstrap --
 async function init() {
   observePanels();
   setupRadarInteraction();
-
-  // Initial load from data.json
   await refreshFromFile();
-
-  // Start animation loop (60fps for smooth visuals)
   requestAnimationFrame(frame);
-
-  // Connect WebSocket for real-time push updates
   connectWebSocket();
-
-  // Start 1s poll as fallback until WS connects
   pollTimer = setInterval(refreshFromFile, POLL_INTERVAL);
 }
 
 window.addEventListener('load', init);
-window.addEventListener('unload', () => {
+window.addEventListener('unload', function() {
   if (rafId) cancelAnimationFrame(rafId);
   resizeObserver.disconnect();
   wsIntentionallyClosed = true;

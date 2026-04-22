@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>5map - Device Radar Detail</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0e17;--card:#131a2b;--border:#1e2d4a;
+  --cyan:#00d4ff;--danger:#ff4757;--warn:#ffa502;--success:#2ed573;
+  --purple:#a855f7;--blue:#3b82f6;
+  --text:#e8eaed;--muted:#8892a4;--dim:#4a5568;
+  --font-mono:'SF Mono','Fira Code','Cascadia Code',monospace;
+  --font-sans:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+}
+html{font-size:14px}
+body{background:var(--bg);color:var(--text);font-family:var(--font-sans);min-height:100vh}
+a{color:var(--cyan);text-decoration:none}
+
+.header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 24px;height:56px;
+  background:linear-gradient(180deg,#0f1520 0%,var(--bg) 100%);
+  border-bottom:1px solid var(--border);
+  position:sticky;top:0;z-index:100;
+}
+.header-left{display:flex;align-items:center;gap:14px}
+.logo{font-size:1.5rem;font-weight:800;letter-spacing:-.02em;font-family:var(--font-mono);color:var(--cyan);display:flex;align-items:center;gap:8px}
+.logo svg{width:28px;height:28px;fill:var(--cyan)}
+.back-link{font-size:.75rem;color:var(--muted);padding:4px 10px;border-radius:6px;border:1px solid transparent;transition:all .15s;display:flex;align-items:center;gap:4px}
+.back-link:hover{color:var(--cyan);background:rgba(0,212,255,.06);border-color:rgba(0,212,255,.15)}
+.page-title{font-size:.82rem;color:var(--muted);font-family:var(--font-mono)}
+.last-update{font-size:.72rem;color:var(--dim);font-family:var(--font-mono)}
+
+.content{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px;min-height:calc(100vh - 56px)}
+@media(max-width:1000px){.content{grid-template-columns:1fr}}
+
+.panel{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border)}
+.panel-title{font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.panel-badge{font-size:.68rem;font-weight:700;padding:2px 7px;border-radius:10px;color:#fff}
+.panel-body{flex:1;overflow:auto;position:relative;min-height:0}
+
+.radar-wrap{position:relative;width:100%;display:flex;align-items:center;justify-content:center;padding:12px}
+#radar-canvas{display:block}
+
+.filter-bar{display:flex;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center}
+.filter-btn{
+  font-size:.68rem;padding:3px 10px;border-radius:12px;
+  border:1px solid var(--border);background:transparent;
+  color:var(--muted);cursor:pointer;transition:all .15s;font-family:var(--font-mono);
+}
+.filter-btn:hover{border-color:var(--cyan);color:var(--cyan)}
+.filter-btn.active{background:rgba(0,212,255,.12);border-color:var(--cyan);color:var(--cyan)}
+.filter-search{
+  flex:1;min-width:120px;background:var(--bg);border:1px solid var(--border);
+  border-radius:6px;padding:4px 10px;color:var(--text);font-size:.72rem;
+  font-family:var(--font-mono);outline:none;
+}
+.filter-search:focus{border-color:var(--cyan)}
+
+.device-table{width:100%;border-collapse:collapse;font-size:.7rem}
+.device-table thead{position:sticky;top:0;z-index:2}
+.device-table th{
+  background:var(--bg);color:var(--dim);font-size:.62rem;
+  text-transform:uppercase;letter-spacing:.06em;font-weight:600;
+  padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);
+  cursor:pointer;user-select:none;white-space:nowrap;
+}
+.device-table th:hover{color:var(--cyan)}
+.device-table th .sort-arrow{font-size:.5rem;margin-left:3px;opacity:.5}
+.device-table th.sorted .sort-arrow{opacity:1;color:var(--cyan)}
+.device-table td{padding:6px 10px;border-bottom:1px solid rgba(30,45,74,.3);white-space:nowrap}
+.device-table tr{transition:background .1s}
+.device-table tr:hover{background:rgba(0,212,255,.04)}
+.device-table tr.selected{background:rgba(0,212,255,.1);border-left:2px solid var(--cyan)}
+.device-table .mac{font-family:var(--font-mono);font-size:.66rem;color:var(--cyan)}
+.device-table .risk-cell{font-family:var(--font-mono);font-weight:700}
+
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.status-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.status-dot.live{background:var(--success);animation:pulse 2s ease-in-out infinite}
+</style>
+</head>
+<body>
+<header class="header">
+  <div class="header-left">
+    <div class="logo">
+      <svg viewBox="0 0 24 24"><path d="M1.29 7.35a15.56 15.56 0 0 1 21.42 0l.6.58-1.42 1.42-.6-.58a13.56 13.56 0 0 0-18.58 0l-.6.58L.69 7.93l.6-.58Zm4.24 4.24a10.44 10.44 0 0 1 12.94 0l.6.5-1.42 1.42-.52-.42a8.44 8.44 0 0 0-10.26 0l-.52.42-1.42-1.42.6-.5Zm4.24 4.24a5.32 5.32 0 0 1 4.46 0l.68.42-1.42 1.42-.38-.24a3.32 3.32 0 0 0-2.22 0l-.38.24-1.42-1.42.68-.42ZM12 18a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Z"/></svg>
+      5map
+    </div>
+    <a href="visual-indicators.html" class="back-link">&#8592; Back</a>
+    <span class="page-title">Device Radar</span>
+  </div>
+  <span class="last-update" id="last-update">--:--:--</span>
+</header>
+
+<div class="content">
+  <!-- Full-screen Radar -->
+  <section class="panel" style="min-height:500px">
+    <div class="panel-head">
+      <span class="panel-title">Radar View</span>
+      <span class="panel-badge" style="background:rgba(0,212,255,.12);color:var(--cyan)" id="radar-count">--</span>
+    </div>
+    <div class="panel-body">
+      <div class="radar-wrap" id="radar-wrap">
+        <canvas id="radar-canvas"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- Device Table -->
+  <section class="panel" style="min-height:500px">
+    <div class="panel-head">
+      <span class="panel-title">All Devices</span>
+      <span class="panel-badge" style="background:rgba(0,212,255,.12);color:var(--cyan)" id="table-count">--</span>
+    </div>
+    <div class="filter-bar">
+      <button class="filter-btn active" data-filter="all">All</button>
+      <button class="filter-btn" data-filter="wifi">WiFi</button>
+      <button class="filter-btn" data-filter="bt">Bluetooth</button>
+      <input type="text" class="filter-search" id="search-input" placeholder="Search MAC, SSID, vendor...">
+    </div>
+    <div class="panel-body" style="overflow:auto">
+      <table class="device-table" id="device-table">
+        <thead>
+          <tr>
+            <th data-col="mac">MAC <span class="sort-arrow">&#9650;</span></th>
+            <th data-col="vendor">Vendor <span class="sort-arrow">&#9650;</span></th>
+            <th data-col="ssid">SSID <span class="sort-arrow">&#9650;</span></th>
+            <th data-col="rssi">RSSI <span class="sort-arrow">&#9650;</span></th>
+            <th data-col="channel">Ch <span class="sort-arrow">&#9650;</span></th>
+            <th data-col="band">Band <span class="sort-arrow">&#9650;</span></th>
+            <th data-col="type">Type <span class="sort-arrow">&#9650;</span></th>
+            <th data-col="risk">Risk <span class="sort-arrow">&#9650;</span></th>
+            <th data-col="distance">Dist <span class="sort-arrow">&#9650;</span></th>
+            <th data-col="first_seen">First Seen <span class="sort-arrow">&#9650;</span></th>
+            <th data-col="last_seen">Last Seen <span class="sort-arrow">&#9650;</span></th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<script>
+(function() {
+'use strict';
+
+var COLORS = {
+  bg:'#0a0e17',card:'#131a2b',border:'#1e2d4a',
+  cyan:'#00d4ff',danger:'#ff4757',warn:'#ffa502',success:'#2ed573',
+  purple:'#a855f7',blue:'#3b82f6',text:'#e8eaed',muted:'#8892a4',dim:'#4a5568'
+};
+
+var appData = null;
+var allDevices = [];
+var selectedMac = null;
+var radarAngle = 0;
+var radarDevices = [];
+var jitterSeed = 0;
+var rafId = null;
+var currentFilter = 'all';
+var currentSearch = '';
+var sortCol = 'rssi';
+var sortAsc = false;
+
+function dpr() { return window.devicePixelRatio || 1; }
+
+function setupCanvas(canvas, w, h) {
+  var r = dpr();
+  canvas.width = w * r; canvas.height = h * r;
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+  var ctx = canvas.getContext('2d');
+  ctx.scale(r, r);
+  return ctx;
+}
+
+function riskColor(s) {
+  s = parseFloat(s) || 0;
+  if (s < 0.3) return COLORS.success;
+  if (s < 0.6) return COLORS.warn;
+  return COLORS.danger;
+}
+
+function estimateDistance(rssi, txPower, type) {
+  var n = 2.7;
+  var tx = txPower != null ? txPower : (type === 'ap' ? -40 : -59);
+  return Math.min(Math.pow(10, (tx - rssi) / (10 * n)), 20);
+}
+
+function jitter(seed) {
+  return (Math.sin(seed * 127.1 + jitterSeed * 311.7) * 0.5 + 0.5) * 4 - 2;
+}
+
+function formatTime(ts) {
+  if (!ts) return '--';
+  var d = new Date(ts);
+  return d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+}
+
+async function loadData() {
+  try {
+    var res = await fetch('data.json?_=' + Date.now());
+    var raw = await res.json();
+    return parseData(raw);
+  } catch(e) { return null; }
+}
+
+function parseData(raw) {
+  function unwrap(v) {
+    if (v === null || v === undefined) return v;
+    if (typeof v !== 'object') return v;
+    if (Array.isArray(v)) return v.map(unwrap);
+    if ('S' in v) return v.S;
+    if ('N' in v) return parseFloat(v.N);
+    if ('BOOL' in v) return v.BOOL;
+    if ('L' in v) return v.L.map(unwrap);
+    if ('M' in v) { var o={}; for(var k in v.M) o[k]=unwrap(v.M[k]); return o; }
+    var o={}; for(var k in v) o[k]=unwrap(v[k]); return o;
+  }
+  return unwrap(raw);
+}
+
+function buildAllDevices(data) {
+  var result = [];
+  (data.devices || []).forEach(function(d) {
+    var dist = estimateDistance(d.rssi_dbm, null, d.device_type);
+    result.push({
+      mac: d.mac_address, vendor: d.vendor || 'Unknown',
+      ssid: (!d.ssid || d.ssid === '-') ? 'Hidden' : d.ssid,
+      rssi: d.rssi_dbm, channel: d.channel || 0,
+      band: d.bandwidth || (d.channel > 14 ? '5GHz' : '2.4GHz'),
+      type: d.device_type || 'unknown', proto: 'wifi',
+      risk: parseFloat(d.risk_score) || 0,
+      distance: Math.round(dist * 100) / 100,
+      first_seen: d.first_seen, last_seen: d.last_seen,
+      is_randomized_mac: d.is_randomized_mac, _raw: d
+    });
+  });
+  (data.bluetooth_devices || []).forEach(function(d) {
+    var dist = estimateDistance(d.rssi_dbm, d.tx_power, 'phone');
+    result.push({
+      mac: d.mac_address, vendor: d.manufacturer || 'Unknown',
+      ssid: d.device_name || '--',
+      rssi: d.rssi_dbm, channel: '--', band: 'BLE',
+      type: d.device_type || 'BLE', proto: 'bt',
+      risk: 0.1, distance: Math.round(dist * 100) / 100,
+      first_seen: d.first_seen, last_seen: d.last_seen,
+      is_randomized_mac: false, _raw: d
+    });
+  });
+  return result;
+}
+
+function getFilteredDevices() {
+  var list = allDevices;
+  if (currentFilter === 'wifi') list = list.filter(function(d){ return d.proto === 'wifi'; });
+  else if (currentFilter === 'bt') list = list.filter(function(d){ return d.proto === 'bt'; });
+  if (currentSearch) {
+    var q = currentSearch.toLowerCase();
+    list = list.filter(function(d) {
+      return d.mac.toLowerCase().indexOf(q) >= 0 ||
+             d.vendor.toLowerCase().indexOf(q) >= 0 ||
+             d.ssid.toLowerCase().indexOf(q) >= 0 ||
+             d.type.toLowerCase().indexOf(q) >= 0;
+    });
+  }
+  list.sort(function(a, b) {
+    var va = a[sortCol], vb = b[sortCol];
+    if (typeof va === 'string') va = va.toLowerCase();
+    if (typeof vb === 'string') vb = vb.toLowerCase();
+    if (va < vb) return sortAsc ? -1 : 1;
+    if (va > vb) return sortAsc ? 1 : -1;
+    return 0;
+  });
+  return list;
+}
+
+function renderTable() {
+  var tbody = document.getElementById('table-body');
+  var devs = getFilteredDevices();
+  document.getElementById('table-count').textContent = devs.length + ' shown';
+
+  tbody.innerHTML = devs.map(function(d) {
+    var rc = riskColor(d.risk);
+    var sel = d.mac === selectedMac ? ' selected' : '';
+    return '<tr class="dev-row' + sel + '" data-mac="' + d.mac + '">' +
+      '<td class="mac">' + d.mac + '</td>' +
+      '<td>' + d.vendor + '</td>' +
+      '<td>' + d.ssid + '</td>' +
+      '<td style="color:' + (d.rssi >= -50 ? COLORS.success : d.rssi >= -75 ? COLORS.warn : COLORS.danger) + '">' + d.rssi + '</td>' +
+      '<td>' + d.channel + '</td>' +
+      '<td>' + d.band + '</td>' +
+      '<td>' + d.type + '</td>' +
+      '<td class="risk-cell" style="color:' + rc + '">' + (d.risk * 100).toFixed(0) + '%</td>' +
+      '<td>' + d.distance + 'm</td>' +
+      '<td>' + formatTime(d.first_seen) + '</td>' +
+      '<td>' + formatTime(d.last_seen) + '</td>' +
+      '</tr>';
+  }).join('');
+
+  tbody.querySelectorAll('.dev-row').forEach(function(row) {
+    row.addEventListener('click', function() {
+      selectedMac = selectedMac === row.dataset.mac ? null : row.dataset.mac;
+      renderTable();
+    });
+  });
+}
+
+// -- Radar Drawing --
+function buildRadarDevices(data) {
+  if (!data) return [];
+  var wifi = (data.devices || []).map(function(d, i) {
+    return Object.assign({}, d, { _proto: 'wifi', _idx: i });
+  });
+  var bt = (data.bluetooth_devices || []).map(function(d, i) {
+    return { mac_address: d.mac_address, device_type: 'ble', vendor: d.manufacturer,
+      rssi_dbm: d.rssi_dbm, risk_score: 0.1, ssid: d.device_name || 'Unknown',
+      _proto: 'bt', _idx: i, _bt: d };
+  });
+  var wifiDevices = wifi.map(function(d, i) {
+    var is5G = d.bandwidth === '5GHz';
+    var angle = ((is5G ? 90 : 0) + (i / Math.max(wifi.length,1)) * 80 + i * 17.3) % 360;
+    return Object.assign({}, d, { _angle: angle * Math.PI / 180, _dist: estimateDistance(d.rssi_dbm, null, d.device_type) });
+  });
+  var btDevices = bt.map(function(d, i) {
+    var angle = 180 + (i / Math.max(bt.length,1)) * 160;
+    return Object.assign({}, d, { _angle: angle * Math.PI / 180, _dist: estimateDistance(d.rssi_dbm, d._bt && d._bt.tx_power, 'phone') });
+  });
+  return wifiDevices.concat(btDevices);
+}
+
+function drawRadar(canvas, wrap, devices, sweep) {
+  var W = wrap.clientWidth - 24;
+  var H = wrap.clientHeight - 24;
+  if (W < 10 || H < 10) return;
+  var size = Math.min(W, H);
+  if (parseInt(canvas.style.width) !== size) { setupCanvas(canvas, size, size); }
+
+  var ctx = canvas.getContext('2d');
+  var r = dpr();
+  ctx.setTransform(r, 0, 0, r, 0, 0);
+  ctx.clearRect(0, 0, size, size);
+  var cx = size/2, cy = size/2, maxR = size/2-20, maxDist = 15;
+  var rings = [1,3,5,10,15];
+
+  ctx.fillStyle = '#080c14'; ctx.fillRect(0,0,size,size);
+
+  rings.forEach(function(m, i) {
+    var rr = (m/maxDist)*maxR;
+    ctx.beginPath(); ctx.arc(cx,cy,rr,0,Math.PI*2);
+    ctx.strokeStyle = i===0?'rgba(0,212,255,.15)':'rgba(30,45,74,.5)';
+    ctx.lineWidth = i===0?1.5:1; ctx.stroke();
+    ctx.fillStyle='rgba(136,146,164,.5)';
+    ctx.font=(9/r*dpr())+'px SF Mono, Fira Code, monospace';
+    ctx.fillText(m+'m', cx+rr+3, cy-3);
+  });
+
+  ctx.strokeStyle='rgba(30,45,74,.6)';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+  ctx.beginPath();ctx.moveTo(cx,cy-maxR-8);ctx.lineTo(cx,cy+maxR+8);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx-maxR-8,cy);ctx.lineTo(cx+maxR+8,cy);ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.save(); ctx.translate(cx,cy); ctx.rotate(-Math.PI/2+sweep);
+  var grad=ctx.createLinearGradient(0,0,maxR,0);
+  grad.addColorStop(0,'rgba(0,212,255,0)');grad.addColorStop(1,'rgba(0,212,255,.18)');
+  ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,maxR,-Math.PI/6,0);ctx.closePath();
+  ctx.fillStyle=grad;ctx.fill();
+  ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(maxR,0);
+  ctx.strokeStyle='rgba(0,212,255,.7)';ctx.lineWidth=1.5;ctx.stroke();
+  ctx.restore();
+
+  ctx.beginPath();ctx.arc(cx,cy,5,0,Math.PI*2);ctx.fillStyle=COLORS.cyan;ctx.fill();
+
+  devices.forEach(function(d, i) {
+    var rssiJ=d.rssi_dbm+jitter(i);
+    var distJ=estimateDistance(rssiJ,null,d.device_type);
+    var rJ=(Math.min(distJ,maxDist)/maxDist)*maxR;
+    var angle=d._angle-Math.PI/2;
+    var x=cx+Math.cos(angle)*rJ, y=cy+Math.sin(angle)*rJ;
+    var radius=d.device_type==='ap'?7:d.device_type==='phone'||d.device_type==='laptop'?5:4;
+    var col=d._proto==='bt'?COLORS.purple:riskColor(d.risk_score||0);
+
+    if(selectedMac===d.mac_address){
+      ctx.beginPath();ctx.arc(x,y,radius+5,0,Math.PI*2);
+      ctx.strokeStyle=COLORS.cyan;ctx.lineWidth=2;ctx.stroke();
+    }
+
+    var glow=ctx.createRadialGradient(x,y,0,x,y,radius+4);
+    glow.addColorStop(0,col+'aa');glow.addColorStop(1,col+'00');
+    ctx.beginPath();ctx.arc(x,y,radius+4,0,Math.PI*2);ctx.fillStyle=glow;ctx.fill();
+    ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.fillStyle=col;ctx.fill();
+  });
+}
+
+function frame(ts) {
+  rafId = requestAnimationFrame(frame);
+  radarAngle = (radarAngle + (Math.PI*2)/(4*60)) % (Math.PI*2);
+  jitterSeed += 0.002;
+  if (!appData) return;
+  var canvas = document.getElementById('radar-canvas');
+  var wrap = document.getElementById('radar-wrap');
+  if (canvas && wrap) drawRadar(canvas, wrap, radarDevices, radarAngle);
+}
+
+// -- Event Setup --
+document.querySelectorAll('.filter-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.filter-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    currentFilter = btn.dataset.filter;
+    renderTable();
+  });
+});
+
+document.getElementById('search-input').addEventListener('input', function(e) {
+  currentSearch = e.target.value;
+  renderTable();
+});
+
+document.querySelectorAll('.device-table th').forEach(function(th) {
+  th.addEventListener('click', function() {
+    var col = th.dataset.col;
+    if (sortCol === col) sortAsc = !sortAsc;
+    else { sortCol = col; sortAsc = true; }
+    document.querySelectorAll('.device-table th').forEach(function(h){ h.classList.remove('sorted'); });
+    th.classList.add('sorted');
+    th.querySelector('.sort-arrow').textContent = sortAsc ? '\u25B2' : '\u25BC';
+    renderTable();
+  });
+});
+
+async function init() {
+  appData = await loadData();
+  if (!appData) return;
+  allDevices = buildAllDevices(appData);
+  radarDevices = buildRadarDevices(appData);
+  document.getElementById('radar-count').textContent = allDevices.length + ' devices';
+  renderTable();
+  requestAnimationFrame(frame);
+  document.getElementById('last-update').textContent = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+
+  setInterval(async function() {
+    appData = await loadData();
+    if (!appData) return;
+    allDevices = buildAllDevices(appData);
+    radarDevices = buildRadarDevices(appData);
+    document.getElementById('radar-count').textContent = allDevices.length + ' devices';
+    renderTable();
+    document.getElementById('last-update').textContent = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  }, 3000);
+}
+
+window.addEventListener('load', init);
+window.addEventListener('unload', function(){ if(rafId) cancelAnimationFrame(rafId); });
+})();
+</script>
+</body>
+</html>

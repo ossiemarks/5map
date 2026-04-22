@@ -14,6 +14,7 @@ import logging
 import os
 import uuid
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import Any
 
 import boto3
@@ -25,6 +26,7 @@ logger.setLevel(logging.INFO)
 S3_BUCKET = os.environ.get("S3_BUCKET", "")
 DYNAMODB_DEVICE_TABLE = os.environ.get("DYNAMODB_DEVICE_TABLE", "")
 DYNAMODB_PRESENCE_TABLE = os.environ.get("DYNAMODB_PRESENCE_TABLE", "")
+DYNAMODB_SESSIONS_TABLE = os.environ.get("DYNAMODB_SESSIONS_TABLE", "")
 WEBSOCKET_API_ENDPOINT = os.environ.get("WEBSOCKET_API_ENDPOINT", "")
 SAGEMAKER_ENDPOINT = os.environ.get("SAGEMAKER_ENDPOINT", "")
 
@@ -68,6 +70,7 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
                 continue
 
             enriched = _enrich(payload)
+            _ensure_session(enriched)
             _archive_to_s3(enriched)
             _store_device_tracks(enriched)
             _store_presence_events(enriched)
@@ -173,6 +176,51 @@ def _generate_session_id(payload: dict[str, Any]) -> str:
     return f"{sensor_id}#{date_part}"
 
 
+# Cache of sessions already registered this Lambda invocation
+_registered_sessions: set[str] = set()
+
+
+def _ensure_session(payload: dict[str, Any]) -> None:
+    """Register the auto-generated session in the sessions table.
+
+    Uses a conditional put to avoid overwriting existing sessions.
+    Caches within the Lambda invocation to avoid repeated writes.
+    """
+    if not DYNAMODB_SESSIONS_TABLE:
+        return
+
+    session_id = payload.get("session_id", "")
+    if not session_id or session_id in _registered_sessions:
+        return
+
+    table = dynamodb.Table(DYNAMODB_SESSIONS_TABLE)
+    sensor_id = payload.get("sensor_id", "unknown")
+    timestamp = payload.get("timestamp", datetime.now(timezone.utc).isoformat())
+
+    item = {
+        "session_id": session_id,
+        "status": "active",
+        "name": f"{sensor_id} — {session_id.split('#')[-1]}",
+        "created_at": timestamp,
+        "sensor_id": sensor_id,
+        "source": "auto",
+    }
+
+    try:
+        table.put_item(
+            Item=_sanitize_dynamodb_item(item),
+            ConditionExpression="attribute_not_exists(session_id)",
+        )
+        logger.info("Registered new session: %s", session_id)
+    except ClientError as exc:
+        if exc.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
+            pass  # Session already exists, that's fine
+        else:
+            logger.error("Failed to register session: %s", exc)
+
+    _registered_sessions.add(session_id)
+
+
 def _archive_to_s3(payload: dict[str, Any]) -> None:
     """Archive validated record to S3 as JSON lines.
 
@@ -240,7 +288,7 @@ def _store_device_tracks(payload: dict[str, Any]) -> None:
 
         item = {
             "session_id": session_id,
-            "mac": mac,
+            "mac_address": mac,
             "last_seen": timestamp,
             "sensor_id": sensor_id,
             "rssi_dbm": obs.get("rssi_dbm"),
@@ -277,11 +325,11 @@ def _store_presence_events(payload: dict[str, Any]) -> None:
 
     item = {
         "session_id": session_id,
-        "timestamp_event_id": sort_key,
+        "event_key": sort_key,
         "timestamp": timestamp,
         "sensor_id": payload.get("sensor_id", ""),
         "observation_count": payload.get("observation_count", 0),
-        "avg_rssi": str(payload.get("avg_rssi", 0)),
+        "avg_rssi": payload.get("avg_rssi", 0),
         "unique_macs": len(
             {obs.get("mac") for obs in payload.get("observations", []) if obs.get("mac")}
         ),
@@ -438,14 +486,12 @@ def _sanitize_dynamodb_item(item: dict[str, Any]) -> dict[str, Any]:
         if value is None:
             continue
         if isinstance(value, float):
-            from decimal import Decimal
-
             sanitized[key] = Decimal(str(value))
         elif isinstance(value, dict):
             nested = _sanitize_dynamodb_item(value)
             if nested:
                 sanitized[key] = nested
-        elif value == "" and key not in ("session_id", "mac", "timestamp_event_id"):
+        elif value == "" and key not in ("session_id", "mac_address", "event_key"):
             continue
         else:
             sanitized[key] = value

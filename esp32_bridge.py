@@ -102,7 +102,7 @@ class ESP32Bridge:
             mac=data.get("mac", ""),
             device_name=data.get("name", ""),
             rssi_dbm=int(data.get("rssi", -100)),
-            tx_power=int(data["tx"]) if data.get("tx_v") else None,
+            tx_power=int(data["tx"]) if data.get("tx") is not None else None,
             adv_type=int(data.get("adv", 0)),
             service_uuids=data.get("svc", []),
             manufacturer_id=data.get("mfr", ""),
