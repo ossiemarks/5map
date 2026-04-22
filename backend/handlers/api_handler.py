@@ -192,6 +192,142 @@ def create_position(event: dict[str, Any]) -> dict[str, Any]:
         return _response(500, {"error": f"Failed to create position: {str(e)}"})
 
 
+def ingest_scan(event: dict[str, Any]) -> dict[str, Any]:
+    """POST /api/ingest - Ingest WiFi scan data from edge sensors.
+
+    Accepts ESP32 scan results and writes directly to DynamoDB device tracks.
+    Designed for lightweight edge devices (e.g. Pineapple) that can't use
+    the full IoT Core -> Kinesis pipeline.
+    """
+    body = _parse_body(event)
+    session_id = body.get("session_id")
+    if not session_id:
+        return _response(400, {"error": "session_id is required"})
+
+    sensor_id = body.get("sensor_id", "pineapple-esp32")
+    networks = body.get("networks", [])
+    timestamp = body.get("timestamp", datetime.now(timezone.utc).isoformat())
+
+    if not networks:
+        return _response(400, {"error": "networks array is required"})
+
+    device_table = dynamodb.Table(DEVICE_TABLE)
+    presence_table = dynamodb.Table(PRESENCE_TABLE)
+    written = 0
+
+    for net in networks:
+        mac = net.get("bssid", "")
+        if not mac:
+            continue
+
+        ssid = net.get("ssid", "")
+        rssi = net.get("rssi", -100)
+        channel = net.get("channel", 0)
+        auth = net.get("auth", "")
+        randomized = net.get("randomized", False)
+
+        # Classify device type
+        device_type = "unknown"
+        if auth == "OPEN" and rssi > -40:
+            device_type = "ap"
+        elif ssid and not randomized:
+            device_type = "ap"
+        elif randomized:
+            device_type = "phone"
+
+        # Determine band
+        bandwidth = "5GHz" if channel > 14 else "2.4GHz"
+
+        item = {
+            "session_id": session_id,
+            "mac_address": mac,
+            "ssid": ssid or "-",
+            "rssi_dbm": Decimal(str(rssi)),
+            "channel": Decimal(str(channel)),
+            "bandwidth": bandwidth,
+            "device_type": device_type,
+            "is_randomized_mac": randomized,
+            "vendor": _lookup_vendor(mac),
+            "source": sensor_id,
+            "first_seen": timestamp,
+            "last_seen": timestamp,
+            "risk_score": Decimal("0"),
+        }
+
+        # Risk scoring
+        if auth == "OPEN" and ssid:
+            item["risk_score"] = Decimal("0.7")
+        elif "WEP" in auth:
+            item["risk_score"] = Decimal("0.5")
+
+        try:
+            # Use update to preserve first_seen
+            device_table.update_item(
+                Key={"session_id": session_id, "mac_address": mac},
+                UpdateExpression=(
+                    "SET rssi_dbm = :rssi, channel = :ch, ssid = :ssid, "
+                    "bandwidth = :bw, device_type = :dt, is_randomized_mac = :rm, "
+                    "vendor = :v, #src = :src, last_seen = :ls, risk_score = :rs, "
+                    "first_seen = if_not_exists(first_seen, :fs) "
+                    "ADD scan_count :one"
+                ),
+                ExpressionAttributeNames={"#src": "source"},
+                ExpressionAttributeValues={
+                    ":rssi": Decimal(str(rssi)),
+                    ":ch": Decimal(str(channel)),
+                    ":ssid": ssid or "-",
+                    ":bw": bandwidth,
+                    ":dt": device_type,
+                    ":rm": randomized,
+                    ":v": item["vendor"],
+                    ":src": sensor_id,
+                    ":ls": timestamp,
+                    ":rs": item["risk_score"],
+                    ":fs": timestamp,
+                    ":one": 1,
+                },
+            )
+            written += 1
+        except Exception as e:
+            logger.error("Failed to upsert device %s: %s", mac, e)
+
+    # Write a presence event
+    event_id = str(uuid.uuid4())
+    try:
+        presence_table.put_item(Item={
+            "session_id": session_id,
+            "event_key": f"{timestamp}#{event_id}",
+            "timestamp": timestamp,
+            "event_type": "scan",
+            "sensor_id": sensor_id,
+            "device_count": Decimal(str(len(networks))),
+            "confidence": Decimal("0.9"),
+            "zone": "scan-zone",
+        })
+    except Exception as e:
+        logger.error("Failed to write presence event: %s", e)
+
+    return _response(200, {"ingested": written, "total": len(networks)})
+
+
+def _lookup_vendor(mac: str) -> str:
+    """Simple OUI vendor lookup."""
+    oui = mac[:8].upper()
+    vendors = {
+        "00:13:37": "Hak5 (Pineapple)",
+        "24:5A:4C": "Huawei",
+        "AC:B6:87": "BT",
+        "D0:21:F9": "TP-Link",
+        "FC:EC:DA": "TP-Link",
+        "74:83:C2": "TP-Link",
+        "9C:05:D6": "Ubiquiti",
+        "D6:79:64": "Samsung",
+        "3C:EF:42": "Apple",
+        "54:22:E0": "Xiaomi",
+    }
+    return vendors.get(oui, "Unknown")
+
+
 def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     """Main Lambda handler - routes requests to appropriate function."""
     # Support both API Gateway v1 (httpMethod/path) and v2 (requestContext.http)
@@ -219,5 +355,8 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
 
     if http_method == "POST" and path == "/api/positions":
         return create_position(event)
+
+    if http_method == "POST" and path == "/api/ingest":
+        return ingest_scan(event)
 
     return _response(404, {"error": "Not found", "path": path, "method": http_method})

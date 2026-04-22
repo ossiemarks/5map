@@ -1,12 +1,18 @@
 /**
  * 5map ESP32 BLE + CSI Scanner
  *
- * Scans for Bluetooth (BLE + Classic) devices and captures WiFi CSI data,
- * outputting JSON lines over USB serial to the Raspberry Pi host.
+ * Scans for Bluetooth (BLE + Classic) devices and captures WiFi CSI data
+ * with full subcarrier amplitude/phase, outputting JSON lines over USB serial.
  *
  * Output format (one JSON object per line):
  *   BLE:  {"t":"ble","mac":"aa:bb:cc:dd:ee:ff","name":"iPhone","rssi":-62,"tx":-12,"adv":0,"svc":["FE2C"],"mfr":"4C00","conn":1}
- *   CSI:  {"t":"csi","mac":"11:22:33:44:55:66","rssi":-55,"ch":6,"bw":20,"len":128,"ts":123456}
+ *   CSI:  {"t":"csi","mac":"11:22:33:44:55:66","rssi":-55,"ch":6,"bw":20,"len":128,"ns":64,"ts":123456,"data":"<base64 I/Q pairs>"}
+ *
+ * CSI data field contains base64-encoded int8 pairs [imag,real] per subcarrier.
+ * Decode on host to extract amplitude = sqrt(real^2 + imag^2), phase = atan2(imag, real).
+ *
+ * Connects to a configured WiFi AP (mini router) to receive consistent CSI frames
+ * from beacon/data packets for environment sensing.
  *
  * Built with ESP-IDF v5.x
  */
@@ -14,6 +20,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <math.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
@@ -21,7 +28,9 @@
 #include "esp_log.h"
 #include "esp_event.h"
 #include "esp_wifi.h"
+#include "esp_mac.h"
 #include "nvs_flash.h"
+#include "mbedtls/base64.h"
 
 #include "esp_bt.h"
 #include "esp_bt_main.h"
@@ -31,6 +40,28 @@
 #include "esp_gattc_api.h"
 
 static const char *TAG = "5map-esp32";
+
+/* ── CSI transmitter AP config ── */
+/* Set via menuconfig or override at compile time */
+#ifndef CONFIG_CSI_AP_SSID
+#define CONFIG_CSI_AP_SSID "5map-csi"
+#endif
+#ifndef CONFIG_CSI_AP_PASS
+#define CONFIG_CSI_AP_PASS "5mapcsi2024"
+#endif
+#ifndef CONFIG_CSI_AP_CHANNEL
+#define CONFIG_CSI_AP_CHANNEL 6
+#endif
+
+/* WiFi connection state */
+static EventGroupHandle_t s_wifi_event_group;
+#define WIFI_CONNECTED_BIT BIT0
+#define WIFI_FAIL_BIT      BIT1
+static int s_retry_num = 0;
+#define MAX_RETRY 10
+
+/* CSI frame counter for rate tracking */
+static volatile uint32_t csi_frame_count = 0;
 
 /* ── BLE scan parameters ── */
 static esp_ble_scan_params_t ble_scan_params = {
@@ -201,7 +232,30 @@ static void gap_ble_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
     }
 }
 
-/* ── WiFi CSI callback ── */
+/* ── WiFi event handler for STA connection ── */
+
+static void wifi_event_handler(void *arg, esp_event_base_t event_base,
+                                int32_t event_id, void *event_data) {
+    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
+        esp_wifi_connect();
+    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
+        if (s_retry_num < MAX_RETRY) {
+            esp_wifi_connect();
+            s_retry_num++;
+            ESP_LOGI(TAG, "Retrying WiFi connection (%d/%d)", s_retry_num, MAX_RETRY);
+        } else {
+            xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
+            ESP_LOGW(TAG, "WiFi connection failed after %d retries, CSI from beacons only", MAX_RETRY);
+        }
+    } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
+        ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
+        ESP_LOGI(TAG, "Connected to CSI AP, IP: " IPSTR, IP2STR(&event->ip_info.ip));
+        s_retry_num = 0;
+        xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+    }
+}
+
+/* ── WiFi CSI callback with full subcarrier data ── */
 
 static void wifi_csi_cb(void *ctx, wifi_csi_info_t *info) {
     if (!info || !info->buf || info->len == 0) return;
@@ -209,31 +263,79 @@ static void wifi_csi_cb(void *ctx, wifi_csi_info_t *info) {
     char mac_str[18];
     mac_to_str(info->mac, mac_str);
 
+    /* Base64-encode the raw CSI buffer (int8 I/Q pairs) */
+    size_t b64_len = 0;
+    /* Calculate required output size */
+    mbedtls_base64_encode(NULL, 0, &b64_len,
+                          (const unsigned char *)info->buf, info->len);
+
+    char *b64_buf = malloc(b64_len + 1);
+    if (!b64_buf) return;
+
+    mbedtls_base64_encode((unsigned char *)b64_buf, b64_len + 1, &b64_len,
+                          (const unsigned char *)info->buf, info->len);
+    b64_buf[b64_len] = '\0';
+
+    int bw = info->rx_ctrl.cwb == 0 ? 20 : 40;
+    int num_subcarriers = info->len / 2;  /* Each subcarrier = 2 bytes (imag, real) */
+
     printf("{\"t\":\"csi\",\"mac\":\"%s\",\"rssi\":%d,"
-           "\"ch\":%d,\"bw\":%d,\"len\":%d,\"ts\":%lld}\n",
+           "\"ch\":%d,\"bw\":%d,\"len\":%d,\"ns\":%d,"
+           "\"noise\":%d,\"rate\":%d,"
+           "\"ts\":%lld,\"data\":\"%s\"}\n",
            mac_str, info->rx_ctrl.rssi,
-           info->rx_ctrl.channel,
-           info->rx_ctrl.cwb == 0 ? 20 : 40,
-           info->len,
-           (long long)(esp_timer_get_time() / 1000));
+           info->rx_ctrl.channel, bw,
+           info->len, num_subcarriers,
+           info->rx_ctrl.noise_floor,
+           info->rx_ctrl.rate,
+           (long long)(esp_timer_get_time() / 1000),
+           b64_buf);
     fflush(stdout);
+
+    free(b64_buf);
+    csi_frame_count++;
 }
 
-/* ── WiFi CSI setup ── */
+/* ── WiFi CSI setup with STA connection to transmitter AP ── */
 
 static void init_wifi_csi(void) {
+    s_wifi_event_group = xEventGroupCreate();
+
+    ESP_ERROR_CHECK(esp_netif_init());
+    esp_netif_create_default_wifi_sta();
+
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-    ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
-    ESP_ERROR_CHECK(esp_wifi_start());
 
+    /* Register WiFi/IP event handlers */
+    esp_event_handler_instance_t instance_any_id;
+    esp_event_handler_instance_t instance_got_ip;
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(
+        WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL, &instance_any_id));
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(
+        IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL, &instance_got_ip));
+
+    /* Configure STA to connect to the CSI transmitter router */
+    wifi_config_t wifi_config = {
+        .sta = {
+            .ssid = CONFIG_CSI_AP_SSID,
+            .password = CONFIG_CSI_AP_PASS,
+            .threshold.authmode = WIFI_AUTH_WPA2_PSK,
+            .sae_pwe_h2e = WPA3_SAE_PWE_BOTH,
+        },
+    };
+
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
+    ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
+
+    /* Enable promiscuous-like CSI capture on all frames */
     wifi_csi_config_t csi_cfg = {
-        .lltf_en           = true,
-        .htltf_en          = true,
-        .stbc_htltf2_en    = true,
-        .ltf_merge_en      = true,
-        .channel_filter_en = false,
+        .lltf_en           = true,   /* Legacy Long Training Field */
+        .htltf_en          = true,   /* HT Long Training Field */
+        .stbc_htltf2_en    = true,   /* STBC HT-LTF2 */
+        .ltf_merge_en      = true,   /* Merge LTF data */
+        .channel_filter_en = false,  /* Don't filter by channel */
         .manu_scale        = false,
         .shift             = false,
     };
@@ -241,7 +343,21 @@ static void init_wifi_csi(void) {
     ESP_ERROR_CHECK(esp_wifi_set_csi_rx_cb(wifi_csi_cb, NULL));
     ESP_ERROR_CHECK(esp_wifi_set_csi(true));
 
-    ESP_LOGI(TAG, "WiFi CSI capture enabled");
+    ESP_ERROR_CHECK(esp_wifi_start());
+
+    /* Wait for connection (non-blocking, CSI works even without association) */
+    ESP_LOGI(TAG, "Connecting to CSI AP: %s", CONFIG_CSI_AP_SSID);
+    EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
+        WIFI_CONNECTED_BIT | WIFI_FAIL_BIT, pdFALSE, pdFALSE,
+        pdMS_TO_TICKS(15000));
+
+    if (bits & WIFI_CONNECTED_BIT) {
+        ESP_LOGI(TAG, "Connected to CSI transmitter AP: %s", CONFIG_CSI_AP_SSID);
+    } else {
+        ESP_LOGW(TAG, "CSI AP not found, capturing ambient CSI from beacons");
+    }
+
+    ESP_LOGI(TAG, "WiFi CSI capture enabled (full subcarrier data)");
 }
 
 /* ── BLE setup ── */
@@ -266,9 +382,17 @@ static void init_ble(void) {
 /* ── Heartbeat task ── */
 
 static void heartbeat_task(void *pvParameters) {
+    uint32_t prev_csi_count = 0;
     while (1) {
-        printf("{\"t\":\"hb\",\"heap\":%lu,\"ts\":%lld}\n",
+        uint32_t cur_csi = csi_frame_count;
+        uint32_t csi_rate = (cur_csi - prev_csi_count);  /* frames per 10s interval */
+        prev_csi_count = cur_csi;
+
+        printf("{\"t\":\"hb\",\"heap\":%lu,\"csi_frames\":%lu,"
+               "\"csi_rate\":%lu,\"ts\":%lld}\n",
                (unsigned long)esp_get_free_heap_size(),
+               (unsigned long)cur_csi,
+               (unsigned long)csi_rate,
                (long long)(esp_timer_get_time() / 1000));
         fflush(stdout);
         vTaskDelay(pdMS_TO_TICKS(10000));

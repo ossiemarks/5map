@@ -58,6 +58,17 @@ module "monitoring" {
   billing_threshold        = var.billing_alarm_threshold
 }
 
+module "dashboard" {
+  source       = "./modules/dashboard"
+  prefix       = local.prefix
+  api_endpoint = module.api.api_endpoint
+
+  providers = {
+    aws           = aws
+    aws.us_east_1 = aws.us_east_1
+  }
+}
+
 output "iot_endpoint" {
   value = module.iot.iot_endpoint
 }
@@ -73,4 +84,12 @@ output "websocket_endpoint" {
 output "iot_cert_arn" {
   value     = module.iot.certificate_arn
   sensitive = true
+}
+
+output "dashboard_url" {
+  value = module.dashboard.dashboard_url
+}
+
+output "dashboard_cloudfront" {
+  value = module.dashboard.cloudfront_domain
 }

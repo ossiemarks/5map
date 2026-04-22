@@ -114,6 +114,40 @@ resource "aws_dynamodb_table" "connections" {
   }
 }
 
+resource "aws_dynamodb_table" "csi_features" {
+  name         = "${var.prefix}-csi-features"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "session_id"
+  range_key    = "timestamp"
+
+  attribute {
+    name = "session_id"
+    type = "S"
+  }
+
+  attribute {
+    name = "timestamp"
+    type = "S"
+  }
+
+  attribute {
+    name = "mac_address"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "mac-index"
+    hash_key        = "mac_address"
+    range_key       = "timestamp"
+    projection_type = "ALL"
+  }
+
+  ttl {
+    attribute_name = "ttl"
+    enabled        = true
+  }
+}
+
 output "maps_table_name" { value = aws_dynamodb_table.environment_maps.name }
 output "maps_table_arn" { value = aws_dynamodb_table.environment_maps.arn }
 output "device_table_name" { value = aws_dynamodb_table.device_tracks.name }
@@ -124,3 +158,5 @@ output "sessions_table_name" { value = aws_dynamodb_table.sessions.name }
 output "sessions_table_arn" { value = aws_dynamodb_table.sessions.arn }
 output "connections_table_name" { value = aws_dynamodb_table.connections.name }
 output "connections_table_arn" { value = aws_dynamodb_table.connections.arn }
+output "csi_features_table_name" { value = aws_dynamodb_table.csi_features.name }
+output "csi_features_table_arn" { value = aws_dynamodb_table.csi_features.arn }

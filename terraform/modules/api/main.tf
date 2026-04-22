@@ -64,6 +64,12 @@ resource "aws_apigatewayv2_route" "post_positions" {
   target    = "integrations/${aws_apigatewayv2_integration.rest.id}"
 }
 
+resource "aws_apigatewayv2_route" "post_ingest" {
+  api_id    = aws_apigatewayv2_api.rest.id
+  route_key = "POST /api/ingest"
+  target    = "integrations/${aws_apigatewayv2_integration.rest.id}"
+}
+
 resource "aws_apigatewayv2_stage" "rest" {
   api_id      = aws_apigatewayv2_api.rest.id
   name        = "$default"

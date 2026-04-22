@@ -1,9 +1,15 @@
 # 5map ESP32 Scanner SDK config
-# BLE + WiFi CSI coexistence
+# BLE + WiFi CSI coexistence with full subcarrier data
 
 # WiFi
 CONFIG_ESP_WIFI_ENABLE_CSI=y
 CONFIG_ESP_WIFI_STA_DISCONNECTED_PM_ENABLE=n
+CONFIG_ESP_WIFI_SOFTAP_SUPPORT=n
+
+# CSI transmitter AP (mini router config)
+CONFIG_CSI_AP_SSID="5map-csi"
+CONFIG_CSI_AP_PASS="5mapcsi2024"
+CONFIG_CSI_AP_CHANNEL=6
 
 # Bluetooth
 CONFIG_BT_ENABLED=y
@@ -18,6 +24,12 @@ CONFIG_ESP_CONSOLE_UART_BAUDRATE=921600
 # Memory optimization
 CONFIG_BT_BLE_DYNAMIC_ENV_MEMORY=y
 CONFIG_ESP_SYSTEM_EVENT_TASK_STACK_SIZE=4096
+
+# Stack sizes (CSI + base64 encoding needs more stack)
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+
+# mbedTLS (needed for base64 encoding of CSI data)
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=n
 
 # Partition table
 CONFIG_PARTITION_TABLE_SINGLE_APP=y

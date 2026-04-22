@@ -145,17 +145,22 @@ class ESP32Bridge:
                 }
 
     def _parse_csi_line(self, data: dict) -> None:
-        """Parse a CSI JSON line from ESP32."""
+        """Parse a CSI JSON line from ESP32 (with optional raw subcarrier data)."""
         obs = CSIObservation(
             mac=data.get("mac", ""),
             rssi_dbm=int(data.get("rssi", -100)),
             channel=int(data.get("ch", 0)),
             bandwidth=int(data.get("bw", 20)),
-            csi_len=int(data.get("len", 0)),
+            csi_len=int(data.get("ns", data.get("len", 0) // 2)),
             timestamp_ms=int(data.get("ts", 0)),
+            raw_data=data.get("data", ""),
+            noise_floor=int(data.get("noise", -90)),
+            rate=int(data.get("rate", 0)),
         )
         self.csi_agg.add(obs)
         self.stats["csi_count"] += 1
+        if obs.raw_data:
+            self.stats["csi_raw_count"] = self.stats.get("csi_raw_count", 0) + 1
 
     def _parse_heartbeat(self, data: dict) -> None:
         """Parse a heartbeat from ESP32."""
