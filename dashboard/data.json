@@ -557,7 +557,7 @@
       "source": "esp32s2",
       "sensor_id": "esp32s2-001",
       "first_seen": "2026-04-22T15:17:46.167127+00:00",
-      "last_seen"20"2026-04-22T15:36:16.419345+00:00",
+      "last_seen": "2026-04-22T15:36:16.419345+00:00",
       "scan_count": 7
     },
     {
@@ -848,8 +848,7 @@
     {
       "mac_address": "7A:86:20:59:90:63",
       "ssid": "-",
-      "rs,
-      "-84,
+      "rssi_dbm": -84,
       "channel": 1,
       "auth": "WPA2-PSK",
       "bandwidth": "2.4GHz",
@@ -1170,8 +1169,7 @@
       "manufacturer": "Unknown",
       "manufacturer_id": "",
       "rssi_dbm": -95,
-      "tx_power,
-     ,
+      "tx_power": null,
       "service_uuids": [
         "0000fef3-0000-1000-8000-00805f9b34fb"
       ],
@@ -1451,8 +1449,7 @@
       "device_name": "",
       "device_type": "BLE",
       "manufacturer": "Microsoft",
-      "manufacture,
-     "0006",
+      "manufacturer_id": "0006",
       "rssi_dbm": -67,
       "tx_power": null,
       "service_uuids": [],
@@ -1731,7 +1728,8 @@
         "0000fcb2-0000-1000-8000-00805f9b34fb"
       ],
       "is_connectable": true,
-      "first_seen": "2026-04-22T09:45:00."2026-04-22T09:56:05.036248+00:00""2026-04-22T09:56:05.036079+00:00",
+      "first_seen": "2026-04-22T09:45:00+00:00",
+      "last_seen": "2026-04-22T09:56:05.036248+00:00",
       "adv_count": 114
     },
     {
@@ -2011,7 +2009,8 @@
       "rssi_dbm": -84,
       "tx_power": null,
       "service_uuids": [],
-      "is_c"2026-04-22T09:45:51.536437+00:00",
+      "is_connectable": true,
+      "first_seen": "2026-04-22T09:45:51.536437+00:00",
       "last_seen": "2026-04-22T09:56:05.036279+00:00",
       "adv_count": 105
     },
@@ -5112,37 +5111,26 @@
       "last_seen": "2026-04-22T09:56:05.036137+00:00",
       "adv_count": 1
     }
-  ]
-}+00:00",
-      "adv_count": 2
+  ],
+  "router_sensor": {
+    "sensor_id": "router-001",
+    "stats": {
+      "observations": 0,
+      "polls": 0,
+      "errors": 0,
+      "reconnects": 0,
+      "mode": "detect",
+      "port": "/dev/ttyUSB0",
+      "baud": 115200,
+      "connected": false
     },
-    {
-      "mac_address": "D9:6B:39:79:EF:1E",
-      "device_name": "",
-      "device_type": "BLE",
-      "manufacturer": "Apple",
-      "manufacturer_id": "004C",
-      "rssi_dbm": -96,
-      "tx_power": null,
-      "service_uuids": [],
-      "is_connectable": true,
-      "first_seen": "2026-04-22T09:55:59.964996+00:00",
-      "last_seen": "2026-04-22T09:55:59.964996+00:00",
-      "adv_count": 1
+    "bridge_stats": {
+      "poll_count": 86,
+      "observation_count": 0,
+      "window_count": 0,
+      "errors": 0,
+      "started_at": "2026-04-22T19:01:59.862726+00:00"
     },
-    {
-      "mac_address": "74:EE:5F:38:87:20",
-      "device_name": "",
-      "device_type": "BLE",
-      "manufacturer": "Apple",
-      "manufacturer_id": "004C",
-      "rssi_dbm": -99,
-      "tx_power": 0,
-      "service_uuids": [],
-      "is_connectable": true,
-      "first_seen": "2026-04-22T09:56:05.036137+00:00",
-      "last_seen": "2026-04-22T09:56:05.036137+00:00",
-      "adv_count": 1
-    }
-  ]
+    "last_update": "2026-04-22T19:06:15.518105+00:00"
+  }
 }
