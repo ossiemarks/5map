@@ -7,6 +7,7 @@ WiFi-based environment mapping, device tracking, and presence detection for secu
 ## Table of Contents
 
 - [Architecture](#architecture)
+  - [Demo Setup (initial)](#demo-setup-initial)
 - [Component Roles](#component-roles)
 - [Capabilities](#capabilities)
 - [Hardware](#hardware)
@@ -97,6 +98,65 @@ API Gateway (WSS)   ◄── Lambda (ws_handler)   ◄── DynamoDB        �
 Dashboard (HTML)    ◄── WebSocket + data.json fallback            │
 Mobile App (RN)     ◄── REST + WebSocket                          │
 ```
+
+### Demo Setup (initial)
+
+The first proving demo is a stripped-down subset of the production
+architecture above — one ESP32 TX, one ESP32 RX, one Pineapple, and a
+laptop. Everything POSTs to a single AWS EC2 instance hosting both the
+ingest bridge and the dashboard. **The laptop is temporary; once the demo
+is proven, its role moves to a Raspberry Pi** with no other code changes.
+
+#### Physical room setup
+
+```mermaid
+flowchart LR
+    subgraph zone["Demo zone (balcony / room) — 3 to 5 m apart"]
+        direction LR
+        TX["ESP32 TX<br/><i>battery pack</i>"]
+        Person(("Person<br/><i>disrupts signal</i>"))
+        RX["ESP32 RX<br/><i>USB-C to laptop</i>"]
+        PA["Wi-Fi Pineapple<br/><i>USB to laptop</i>"]
+        TX -. "CSI radio waves" .- Person
+        Person -. .- RX
+        PA -.- TX
+        PA -.- RX
+    end
+```
+
+#### Wiring + data flow
+
+```mermaid
+flowchart LR
+    Battery["Battery pack"]
+    TX["ESP32 TX<br/><i>transmitter</i>"]
+    RX["ESP32 RX<br/><i>receiver — CSI</i>"]
+    PA["Pineapple<br/><i>Wi-Fi scanner</i>"]
+    BLE["Built-in Bluetooth<br/><i>BLE device count</i>"]
+    Host["Laptop today / Pi tomorrow<br/><b>forwarder.py</b>"]
+    AWS["AWS EC2<br/><i>bridge + dashboard</i>"]
+    Browser["Any browser<br/><i>phone / laptop / TV</i>"]
+
+    Battery -- "USB-C power" --> TX
+    RX -- "USB-C serial" --> Host
+    PA -- "USB (Wi-Fi + power)" --> Host
+    BLE -. "internal radio" .- Host
+    Host -- "HTTPS POST" --> AWS
+    AWS -- "HTTPS" --> Browser
+```
+
+#### Sensor sources for the demo
+
+| Source | Role | Runtime | Notes |
+|---|---|---|---|
+| ESP32 TX | Continuous Wi-Fi beacon — provides the signal whose perturbations RX measures | MicroPython OK (no CSI read needed) | Battery powered, label "TX" |
+| ESP32 RX | Captures Wi-Fi CSI from TX, streams over USB serial | **Native C / ESP-IDF required** — MicroPython doesn't expose `esp_wifi_set_csi_rx_cb` | USB-C to host, label "RX" |
+| Wi-Fi Pineapple | Scans Wi-Fi APs / clients in range, RSSI map | Pineapple OS (HAK5) | USB to host |
+| Built-in Bluetooth | Counts unique BLE devices visible to the host | Host OS BT stack via `bleak` (Python) | No extra hardware |
+
+See [KNOWLEDGE.md](./KNOWLEDGE.md#demo-architecture) for the laptop → Pi
+migration notes (port globbing, BLE library compatibility, Pineapple driver
+differences).
 
 ---
 

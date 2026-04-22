@@ -4,6 +4,80 @@ Research papers, references, and domain knowledge relevant to the 5map project.
 
 ---
 
+## Demo Architecture
+
+Target architecture for the initial demo. The laptop is the temporary host —
+post-demo, its role moves to a Raspberry Pi (same forwarder script, same
+sensors, same cloud endpoint).
+
+### Physical room setup
+
+Place the two ESP32s on opposite sides of the zone you want to monitor; people
+moving between them disrupt the radio path and produce the CSI signal.
+
+```mermaid
+flowchart LR
+    subgraph zone["Demo zone (balcony / room) — 3 to 5 m apart"]
+        direction LR
+        TX["ESP32 TX<br/><i>battery pack</i>"]
+        Person(("Person<br/><i>disrupts signal</i>"))
+        RX["ESP32 RX<br/><i>USB-C to laptop</i>"]
+        PA["Wi-Fi Pineapple<br/><i>USB to laptop</i>"]
+        TX -. "CSI radio waves" .- Person
+        Person -. .- RX
+        PA -.- TX
+        PA -.- RX
+    end
+```
+
+### Wiring + data flow
+
+Three sensors plug into one host (laptop today, Pi tomorrow). The host runs
+`forwarder.py`, which aggregates everything and POSTs to AWS EC2 over HTTPS.
+EC2 hosts both the ingest bridge and the dashboard, so any browser on any
+device can view live results.
+
+```mermaid
+flowchart LR
+    Battery["Battery pack"]
+    TX["ESP32 TX<br/><i>transmitter</i>"]
+    RX["ESP32 RX<br/><i>receiver — CSI</i>"]
+    PA["Pineapple<br/><i>Wi-Fi scanner</i>"]
+    BLE["Built-in Bluetooth<br/><i>BLE device count</i>"]
+    Host["Laptop today / Pi tomorrow<br/><b>forwarder.py</b>"]
+    AWS["AWS EC2<br/><i>bridge + dashboard</i>"]
+    Browser["Any browser<br/><i>phone / laptop / TV</i>"]
+
+    Battery -- "USB-C power" --> TX
+    RX -- "USB-C serial" --> Host
+    PA -- "USB (Wi-Fi + power)" --> Host
+    BLE -. "internal radio" .- Host
+    Host -- "HTTPS POST" --> AWS
+    AWS -- "HTTPS" --> Browser
+```
+
+### Notes on the four sensor sources
+
+| Source | Role | Firmware / runtime | Replaceable by Pi? |
+|---|---|---|---|
+| **ESP32 TX** | Continuous Wi-Fi beacon — provides the signal whose perturbations RX measures | MicroPython is fine (no CSI read needed) | No — physical radio source |
+| **ESP32 RX** | Captures Wi-Fi CSI from TX, streams over USB serial | Must be **native C / ESP-IDF** — MicroPython doesn't expose `esp_wifi_set_csi_rx_cb` | No — physical radio receiver |
+| **Wi-Fi Pineapple** | Scans Wi-Fi APs / clients in range, provides RSSI map | Pineapple firmware (HAK5) | No — physical hardware |
+| **Built-in Bluetooth** | Counts unique BLE devices visible to the host | Host OS Bluetooth stack (`bleak` etc. in Python) | Yes — Pi 4/5 has BLE built in |
+
+### Laptop → Pi migration
+
+Once the demo is proven, the host moves from a laptop to a Raspberry Pi. Same
+USB ports, same `forwarder.py`, same EC2 endpoint. The Pi gains a small case,
+optionally PoE-powered, and lives in the demo zone full-time.
+
+Things that need to port cleanly when the host changes:
+- USB serial enumeration (Pi assigns `/dev/ttyUSB*`, Mac assigns `/dev/cu.usbserial-*`) — `forwarder.py` should accept a port glob, not a hard path.
+- `bleak` works identically on macOS and Linux for BLE scanning — no code change needed.
+- Pineapple driver model differs (hostapd vs Pineapple OS over USB-Ethernet) — verify before the swap.
+
+---
+
 ## WiPi: A Low-Cost Large-Scale Remotely-Accessible Network Testbed
 
 **Authors:** Abdelhamid Attaby, Nada Osman, Mustafa ElNainay, Moustafa Youssef
