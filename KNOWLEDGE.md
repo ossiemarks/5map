@@ -256,3 +256,58 @@ System for recognizing human gait patterns using WiFi Channel State Information 
 - **Multi-target tracking**: MIMO antenna techniques applicable when multiple ESP32 receivers are deployed
 - **Health/security dual-use**: Gait recognition can identify unauthorized personnel in secure zones — extends 5map's security audit capability
 - **Future roadmap**: When MT7612U 5GHz dongle + original ESP32 (with CSI) are deployed, implement TSCI extraction for gesture/activity recognition per this patent's approach
+
+---
+
+## WiFi CSI vs RSSI Indoor Tracking — Research Summary (2022-2026)
+
+Compiled from ACM Computing Surveys 2025, PMC 2024, MobiCom 2024, MDPI 2025, and Espressif documentation.
+
+### Resolution Comparison
+
+| Metric | RSSI-Only | CSI-Based |
+|--------|-----------|-----------|
+| Positioning error | 2-5 metres | 0.5-1.2 metres |
+| Activity recognition | 70-80% | 90-97% |
+| Through-wall capability | Moderate | Better (phase info) |
+| Hardware complexity | Trivial | Requires CSI-capable firmware |
+| Environmental sensitivity | High (needs recalibration) | Moderate (better multipath discrimination) |
+
+### CSI Capabilities
+- Per-subcarrier amplitude and phase across OFDM channels — far richer than RSSI's single scalar
+- Sub-decimeter (10cm) positioning in controlled environments with Random Forest (93-98% grid accuracy)
+- Practical mean positioning error: **0.7-1.2m** using CSI fingerprinting with deep learning
+- WiProfile system (MobiCom 2024): sub-centimetre target profiling via WiFi diffraction
+- ESP32 CSI capability ranking: **ESP32-C5 > C6 > C3 ≈ S3 > original ESP32** (S2 does not support CSI)
+
+### Dual-Band Fusion Results
+- 5GHz yields better positioning due to shorter wavelength (finer spatial resolution)
+- Hybrid RSSI+CSI fusion: **0.8m mean error** (~35% improvement over single-band CSI)
+- 2.4GHz still useful for through-wall coverage where 5GHz attenuates heavily
+- Bands are complementary, not redundant
+
+### Best ML Architectures for WiFi Human Activity Recognition
+1. **CNN-LSTM hybrids**: Spatial features (CNN) + temporal patterns (LSTM) → 95-97.5% accuracy on 6-7 activity classes
+2. **Attention BiLSTM (ABLSTM)**: Bidirectional sequential features from raw CSI — strong for gestures
+3. **CNN-Transformer ensembles**: Self-attention for long-range temporal dependencies — emerging SOTA
+4. **EfficientNetV2 variants**: Handle noisy CSI data well
+
+### Practical Deployment
+- **Minimum sensors**: Sub-metre tracking demonstrated with single AP using CSI fingerprinting (Chronos system). 3-4 ESP32 nodes provide robust multi-angle coverage.
+- **Placement**: Maximise angular diversity; avoid co-linear placement. Ceiling/upper-wall mounting reduces body-shadowing.
+- **Real-time**: CSI at 50-100 Hz packet rate. CNN-LSTM inference: 10-50ms on edge hardware.
+- **MAC randomization**: Behavioural fingerprinting (probe patterns, RSSI spatial signature, frame IEs) achieves 70-85% re-identification across MAC rotations.
+
+### Relevance to 5map
+- Current RSSI-only approach adequate for zone-level presence (2-5m resolution)
+- Upgrading ESP32 on Pineapple to CSI firmware would give 3-5x better spatial resolution
+- CNN front-end added to existing LSTM would improve HAR accuracy from ~80% to ~95%
+- Particle filter recommended for trajectory smoothing with >4 reference points (future hardware expansion)
+- ESP32-S2 (Flipper board) cannot do CSI — need original ESP32 or ESP32-C5/C6 for CSI
+
+### Key Sources
+- [WiFi Sensing for HAR Survey — ACM Computing Surveys 2025](https://dl.acm.org/doi/10.1145/3705893)
+- [Commodity WiFi Sensing Advances — PMC 2024](https://pmc.ncbi.nlm.nih.gov/articles/PMC11597943/)
+- [CNN-LSTM-Attention for WiFi CSI — MDPI 2025](https://www.mdpi.com/2079-9292/14/8/1594)
+- [Espressif ESP-CSI Repository](https://github.com/espressif/esp-csi)
+- [Device-Free Localization with ESP32 CSI — Preprints 2026](https://www.preprints.org/manuscript/202601.2378)
