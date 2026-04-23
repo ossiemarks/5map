@@ -369,3 +369,108 @@ def generate_augmented_presence_data(
                 augmented_labels.append(label)
 
     return augmented_data, augmented_labels
+
+
+def generate_synthetic_fingerprint_data(
+    room_width: float = 5.0,
+    room_depth: float = 5.0,
+    zones_x: int = 3,
+    zones_y: int = 3,
+    sensor_positions: list[tuple[float, float]] | None = None,
+    sensor_ids: list[str] | None = None,
+    samples_per_zone: int = 30,
+    readings_per_sample: int = 5,
+    noise_std: float = 3.0,
+    nlos_probability: float = 0.3,
+) -> tuple[list[list[float]], list[str], list[str]]:
+    """Generate synthetic RSSI fingerprint data for zone classifier training.
+
+    Simulates multi-sensor RSSI observations at positions throughout a room,
+    applying log-distance path loss with LOS/NLOS variation per the BiCN paper.
+
+    Args:
+        room_width: Room width in metres.
+        room_depth: Room depth in metres.
+        zones_x: Number of zones along X axis.
+        zones_y: Number of zones along Y axis.
+        sensor_positions: (x, y) for each sensor. Defaults to 5map layout.
+        sensor_ids: Sensor ID strings.
+        samples_per_zone: Training samples per zone.
+        readings_per_sample: RSSI readings averaged per sample (per BiCN: 20).
+        noise_std: Gaussian noise std for RSSI (dBm).
+        nlos_probability: Probability a sensor-position pair is NLOS.
+
+    Returns:
+        Tuple of (X, y, sensor_ids) where:
+            X: Feature matrix (N x 15 for 3 sensors).
+            y: Zone labels.
+            sensor_ids: Sensor ID list used.
+    """
+    from ml.data.fingerprint_db import ZoneGrid, compute_statistical_features
+
+    rng = np.random.default_rng()
+
+    if sensor_positions is None:
+        sensor_positions = [(0.5, 2.5), (4.5, 2.5), (2.5, 4.5)]
+    if sensor_ids is None:
+        sensor_ids = ["router-001", "esp32s2-001", "pineapple-001"]
+
+    n_sensors = len(sensor_positions)
+    tx_power = -30.0  # dBm at 1 metre reference
+    path_loss_n_los = 2.0  # LOS path loss exponent
+    path_loss_n_nlos = 3.5  # NLOS path loss exponent (walls, obstacles)
+
+    grid = ZoneGrid(room_width, room_depth, zones_x, zones_y)
+
+    X: list[list[float]] = []
+    y: list[str] = []
+
+    for zone_id, zone_info in grid.zones.items():
+        cx, cy = zone_info["center"]
+        zone_w = room_width / zones_x
+        zone_h = room_depth / zones_y
+
+        for _ in range(samples_per_zone):
+            # Random position within zone
+            px = cx + rng.uniform(-zone_w / 2 * 0.8, zone_w / 2 * 0.8)
+            py = cy + rng.uniform(-zone_h / 2 * 0.8, zone_h / 2 * 0.8)
+
+            features: list[float] = []
+            all_stats: list[list[float]] = []
+
+            for si, (sx, sy) in enumerate(sensor_positions):
+                dist = max(0.3, np.sqrt((px - sx) ** 2 + (py - sy) ** 2))
+                is_nlos = rng.random() < nlos_probability
+
+                # BiCN: 2.4GHz better in NLOS, 5GHz better in LOS
+                n = path_loss_n_nlos if is_nlos else path_loss_n_los
+                # NLOS adds extra attenuation
+                nlos_attenuation = rng.uniform(3, 8) if is_nlos else 0
+
+                # Generate multiple readings per sample
+                readings = []
+                for _ in range(readings_per_sample):
+                    rssi = (
+                        tx_power
+                        - 10 * n * np.log10(dist)
+                        - nlos_attenuation
+                        + rng.normal(0, noise_std)
+                    )
+                    rssi = max(-100.0, min(-10.0, rssi))
+                    readings.append(int(round(rssi)))
+
+                avg_rssi = int(round(sum(readings) / len(readings)))
+                features.append(float(avg_rssi))
+
+                # BiCN statistical features
+                stats = compute_statistical_features(readings)
+                all_stats.append(stats)
+
+            # Append statistical features per sensor
+            for stats in all_stats:
+                features.extend(stats)
+
+            X.append(features)
+            y.append(zone_id)
+
+    return X, y, sensor_ids

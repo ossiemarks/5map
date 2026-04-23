@@ -54,7 +54,7 @@ static EventGroupHandle_t s_wifi_event_group;
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT      BIT1
 static int s_retry_num = 0;
-#define MAX_RETRY 10
+#define MAX_RETRY 3
 static volatile bool s_wifi_connected = false;
 
 /* CSI frame counter for rate tracking */
@@ -157,7 +157,12 @@ static const char *auth_mode_str(wifi_auth_mode_t mode) {
 }
 
 static void wifi_scan_task(void *pvParameters) {
-    /* Periodic WiFi AP scan for environment mapping */
+    /* Wait for WiFi to stabilize before scanning */
+    vTaskDelay(pdMS_TO_TICKS(8000));
+
+    /* Use a static buffer to avoid heap fragmentation on S2 */
+    static wifi_ap_record_t ap_list[20];
+
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(5000));
 
@@ -166,23 +171,23 @@ static void wifi_scan_task(void *pvParameters) {
             .bssid = NULL,
             .channel = 0,
             .show_hidden = true,
-            .scan_type = WIFI_SCAN_TYPE_ACTIVE,
-            .scan_time.active.min = 100,
-            .scan_time.active.max = 300,
+            .scan_type = WIFI_SCAN_TYPE_PASSIVE,
+            .scan_time.passive = 300,
         };
 
         esp_err_t err = esp_wifi_scan_start(&scan_config, true);
-        if (err != ESP_OK) continue;
+        if (err != ESP_OK) {
+            ESP_LOGD(TAG, "Scan failed: 0x%x", err);
+            esp_wifi_scan_stop();
+            continue;
+        }
 
-        uint16_t ap_count = 0;
-        esp_wifi_scan_get_ap_num(&ap_count);
-        if (ap_count == 0) continue;
-        if (ap_count > 30) ap_count = 30;
-
-        wifi_ap_record_t *ap_list = malloc(sizeof(wifi_ap_record_t) * ap_count);
-        if (!ap_list) continue;
-
-        esp_wifi_scan_get_ap_records(&ap_count, ap_list);
+        uint16_t ap_count = 20;
+        err = esp_wifi_scan_get_ap_records(&ap_count, ap_list);
+        if (err != ESP_OK || ap_count == 0) {
+            esp_wifi_clear_ap_list();
+            continue;
+        }
 
         for (int i = 0; i < ap_count; i++) {
             char mac_str[18];
@@ -193,12 +198,12 @@ static void wifi_scan_task(void *pvParameters) {
             for (; j < 32 && ap_list[i].ssid[j]; j++) {
                 char c = (char)ap_list[i].ssid[j];
                 if (c == '"' || c == '\\') {
-                    ssid_safe[k++] = '\\';
                     if (k >= 31) break;
+                    ssid_safe[k++] = '\\';
                 }
                 if (c >= 0x20 && c < 0x7F) {
-                    ssid_safe[k++] = c;
                     if (k >= 32) break;
+                    ssid_safe[k++] = c;
                 }
             }
             ssid_safe[k] = '\0';
@@ -212,11 +217,14 @@ static void wifi_scan_task(void *pvParameters) {
                    ap_list[i].primary,
                    auth_mode_str(ap_list[i].authmode),
                    ap_list[i].primary <= 14 ? "2.4GHz" : "5GHz");
-            fflush(stdout);
         }
+        fflush(stdout);
 
-        free(ap_list);
+        esp_wifi_clear_ap_list();
         wifi_scan_count++;
+
+        /* Feed the watchdog */
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
 
@@ -277,7 +285,7 @@ static void init_wifi(void) {
     ESP_LOGI(TAG, "Connecting to CSI AP: %s", CONFIG_CSI_AP_SSID);
     EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
         WIFI_CONNECTED_BIT | WIFI_FAIL_BIT, pdFALSE, pdFALSE,
-        pdMS_TO_TICKS(15000));
+        pdMS_TO_TICKS(5000));
 
     if (bits & WIFI_CONNECTED_BIT) {
         ESP_LOGI(TAG, "Connected to CSI transmitter AP: %s", CONFIG_CSI_AP_SSID);
@@ -335,7 +343,7 @@ void app_main(void) {
     init_wifi();
 
     /* WiFi AP scan task for environment mapping */
-    xTaskCreate(wifi_scan_task, "wifi_scan", 4096, NULL, 2, NULL);
+    xTaskCreate(wifi_scan_task, "wifi_scan", 8192, NULL, 2, NULL);
 
     /* Heartbeat for health monitoring */
     xTaskCreate(heartbeat_task, "heartbeat", 2048, NULL, 1, NULL);

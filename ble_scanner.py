@@ -15,6 +15,7 @@ Usage:
 
 import argparse
 import asyncio
+import fcntl
 import json
 import logging
 import signal
@@ -193,16 +194,21 @@ class BLEScanner:
             return
         try:
             path = Path(self.dashboard_path)
-            if path.exists():
-                with open(path) as f:
-                    data = json.load(f)
-            else:
-                data = {}
+            lock_path = path.with_suffix(".lock")
+            with open(lock_path, "w") as lockf:
+                fcntl.flock(lockf, fcntl.LOCK_EX)
+                if path.exists():
+                    with open(path) as f:
+                        data = json.load(f)
+                else:
+                    data = {}
 
-            data["bluetooth_devices"] = list(self.devices.values())
+                data["bluetooth_devices"] = list(self.devices.values())
 
-            with open(path, "w") as f:
-                json.dump(data, f, indent=2)
+                tmp_path = path.with_suffix(".tmp")
+                with open(tmp_path, "w") as f:
+                    json.dump(data, f, indent=2)
+                tmp_path.rename(path)
         except Exception as e:
             logger.debug("Dashboard export error: %s", e)
 

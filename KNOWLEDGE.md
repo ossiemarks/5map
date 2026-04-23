@@ -129,3 +129,130 @@ WiPi addresses the high cost of establishing network experimental labs by provid
 - PoE-powered distributed nodes align with 5map's edge node architecture
 - VLAN isolation patterns useful for multi-session capture environments
 - Demonstrates feasibility of remotely-accessible wireless sensing infrastructure
+
+---
+
+## BiCN: Signal Fuse Learning Method with Dual-Bands WiFi Signal Measurements in Indoor Positioning
+
+**Authors:** Chung-Ming Own (Member, IEEE), Jia-Wang Hou, Wen-Yuan Tao
+**Published:** IEEE Access, Volume 4, 2019
+**DOI:** 10.1109/ACCESS.2019.2940054
+
+### Abstract
+Proposes BiCN (Bi-modal Capsule Network), a dual-band WiFi indoor positioning system that fuses 2.4GHz and 5GHz RSSI signals. Uses SVM to classify LOS/NLOS conditions and Capsule Networks for fingerprint-based position estimation. Achieves **0.99m positioning accuracy** in field tests with just 3 APs.
+
+### Key Findings
+
+**Dual-Band Signal Characteristics:**
+- **2.4GHz**: Higher penetrability through walls, better in NLOS conditions, but larger RSSI fluctuation (8 dBm variance in LOS)
+- **5GHz**: More stable signal (3 dBm variance in LOS), better in LOS conditions, but severely affected by obstacles in NLOS
+- NLOS variance: 2.4GHz = 1.56, 5GHz = 1.56 (similar in NLOS)
+- LOS variance: 2.4GHz = 3.63, 5GHz = 0.91 (5GHz much more stable)
+
+**Feature Extraction (4 features per AP, per band):**
+1. Mean RSSI
+2. Standard deviation
+3. Skewness (asymmetry of probability distribution)
+4. Kurtosis (peak-to-peak characterization)
+
+**SVM for LOS/NLOS Detection:**
+- Uses 5GHz signal features only (most discriminative for LOS/NLOS)
+- Classification accuracy: **>96%** (most tests >97%)
+- RBF kernel with Gaussian radial basis function
+- Outputs probability of LOS vs NLOS condition per AP
+
+**Capsule Network Architecture:**
+- Input: 10K-dimensional RSSI vectors (10 readings × K APs per band)
+- 4 layers: input → convolution → capsule → fully connected
+- Dynamic routing between capsules (iterative coupling coefficients)
+- Separate networks for 2.4GHz and 5GHz fingerprint databases
+- Requires much less training data than CNN
+
+**Signal Fusion Formula:**
+```
+L = (W_N / (W_N + W_L)) × X_2.4 + (W_L / (W_N + W_L)) × X_5
+```
+Where W_N = sum of NLOS probabilities, W_L = sum of LOS probabilities across APs. In NLOS conditions, 2.4GHz weighted higher; in LOS, 5GHz weighted higher.
+
+**Experimental Results:**
+
+| Method | Avg Error | ≤1m | ≤2m | ≤3m |
+|--------|-----------|-----|-----|-----|
+| KNN | 2.40m | 17.8% | 47.9% | 65.7% |
+| WKNN | 1.86m | 32.4% | 64.8% | 83.1% |
+| DGPR | 2.38m | 14.5% | 52.7% | 69.1% |
+| CN2.4G | 1.13m | 64.4% | 80.8% | 89.0% |
+| CN5G | 1.11m | 65.8% | 82.2% | 90.4% |
+| **BiCN** | **0.99m** | **58.8%** | **88.2%** | **95.6%** |
+
+**Test Environment:** 12m × 16m office building with 2 halls, 1 corridor, 2 classrooms. 3 Tenda AC9 dual-band routers. 20 RSSI readings per AP per position.
+
+**Robustness:** BiCN maintains <1m mean error in environments E1-E3 (normal to heavy crowds). In E5 (super heavy crowds), error rises to 1.54m — still better than single-band methods.
+
+### Relevance to 5map
+- **Validates 3-AP setup**: BiCN achieves sub-metre accuracy with just 3 APs — matches our 3-sensor deployment (Router, ESP32, Pineapple)
+- **Feature engineering blueprint**: The 4 statistical features (mean, std, skewness, kurtosis) per sensor provide a proven feature vector for our zone classifier
+- **LOS/NLOS handling**: SVM-based NLOS detection using 5GHz features directly applicable — our Pineapple has 5GHz radio
+- **Fusion approach**: When we add 5GHz scanning (MT7612U dongle), the BiCN fusion formula weights bands by propagation condition automatically
+- **Capsule Networks**: Potential upgrade from Random Forest for zone classification — requires less training data than CNN, important for field deployment where calibration time is limited
+- **Fingerprint database design**: Grid-based fingerprint collection (20 readings per position) provides calibration workflow for walk-and-map
+
+---
+
+## EP3695783A1: Wireless Gait Recognition
+
+**Title:** Method, Apparatus, and System for Wireless Gait Recognition
+**Assignee:** Origin Wireless Inc.
+**Inventors:** Chenshu Wu, Feng Zhang, Beibei Wang, Yuqian Hu, K.J. Ray Liu, et al.
+**Filed:** February 17, 2020 (Priority: February 15, 2019)
+**Published:** August 19, 2020
+**Status:** Pending
+
+### Source
+- [Google Patents](https://patents.google.com/patent/EP3695783A1/en)
+
+### Abstract
+System for recognizing human gait patterns using WiFi Channel State Information (CSI) without wearable devices or cameras. Extracts Time Series of Channel Information (TSCI) from wireless multipath channels to detect and classify rhythmic human motion. Identifies individuals by their unique walking signature — gait as a biometric "sixth vital sign."
+
+### Technical Approach
+
+**Core Method:**
+1. Transmitter sends wireless signals through venue
+2. Receiver captures CSI modified by human movement in multipath environment
+3. Processor extracts TSCI (Time Series of Channel Information)
+4. Rhythmic motion patterns (gait cycles) identified and classified
+
+**Key Algorithms:**
+- **Dynamic Time Warping (DTW)**: Aligns temporal sequences from different TSCI recordings, computes mismatch costs between motion patterns
+- **PCA / ICA**: Dimension reduction on CSI feature space
+- **Capsule-style routing**: Weighted connections for hierarchical feature extraction
+- **Signal filtering**: Low-pass, band-pass, median, moving average on CSI magnitudes
+
+**Gait Cycle Analysis:**
+- Two main phases: stance and swing
+- 7 sub-stages within each gait cycle
+- Walking frequency and stride characteristics form biometric signature
+- Unique per individual — usable for identification and health monitoring
+
+**Supported Wireless Standards:**
+- WiFi (802.11a/b/g/n/ac/ax)
+- LTE / 5G
+- Bluetooth / BLE
+- Zigbee
+- Any standard providing CSI or channel measurements
+
+**Key Capabilities:**
+- Passive monitoring — no cooperation from subject required
+- No wearable devices needed
+- Works in unrestricted areas (homes, offices, public spaces)
+- Multiple simultaneous targets via multi-antenna (MIMO) configurations
+- Person identification through gait biometrics
+- Health indicator monitoring via walking pattern changes
+
+### Relevance to 5map
+- **CSI-based movement detection**: When ESP32 CSI hardware is available (requires original ESP32, not S2), TSCI extraction enables sub-metre activity detection beyond zone-level tracking
+- **Passive sensing**: Aligns with 5map's non-intrusive security audit approach — detect human presence without cameras or wearables
+- **DTW for motion matching**: Applicable to classifying movement patterns (walking, running, stationary) from RSSI time-series even without full CSI
+- **Multi-target tracking**: MIMO antenna techniques applicable when multiple ESP32 receivers are deployed
+- **Health/security dual-use**: Gait recognition can identify unauthorized personnel in secure zones — extends 5map's security audit capability
+- **Future roadmap**: When MT7612U 5GHz dongle + original ESP32 (with CSI) are deployed, implement TSCI extraction for gesture/activity recognition per this patent's approach
