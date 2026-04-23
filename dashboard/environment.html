@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>5map - Environment Monitor</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0e17;--card:#131a2b;--border:#1e2d4a;
+  --cyan:#00d4ff;--orange:#f97316;--success:#2ed573;--danger:#ff4757;
+  --warn:#ffa502;--purple:#a855f7;--blue:#3b82f6;
+  --text:#e8eaed;--muted:#8892a4;--dim:#4a5568;
+  --font-mono:'SF Mono','Fira Code','Cascadia Code',monospace;
+  --font-sans:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --sidebar-w:260px;
+  --header-h:48px;
+  --bottom-h:42px;
+}
+html{font-size:14px}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:var(--font-sans);
+  height:100vh;overflow:hidden;
+}
+a{color:var(--cyan);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* ── Header ── */
+.header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 20px;height:var(--header-h);
+  background:linear-gradient(180deg,#0f1520 0%,var(--bg) 100%);
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.header-left{display:flex;align-items:center;gap:14px}
+.logo{
+  font-size:1.25rem;font-weight:800;letter-spacing:-.02em;
+  font-family:var(--font-mono);color:var(--cyan);
+  display:flex;align-items:center;gap:6px;
+}
+.logo svg{width:22px;height:22px;fill:var(--cyan)}
+.nav-links{display:flex;align-items:center;gap:4px}
+.nav-link{
+  font-size:.72rem;color:var(--muted);
+  padding:3px 9px;border-radius:5px;
+  border:1px solid transparent;
+  transition:all .15s;
+}
+.nav-link:hover{
+  text-decoration:none;
+  background:rgba(0,212,255,.06);border-color:rgba(0,212,255,.2);
+  color:var(--cyan);
+}
+.header-right{display:flex;align-items:center;gap:14px}
+.status-pill{
+  display:flex;align-items:center;gap:5px;
+  font-size:.72rem;color:var(--muted);
+  padding:3px 9px;border-radius:10px;
+  background:rgba(255,255,255,.04);
+}
+.status-dot{
+  width:7px;height:7px;border-radius:50%;
+  display:inline-block;flex-shrink:0;
+}
+.status-dot.live{background:var(--success);animation:pulse 2s ease-in-out infinite}
+.status-dot.dead{background:var(--danger)}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(46,213,115,.6)}50%{opacity:.7;box-shadow:0 0 0 5px rgba(46,213,115,0)}}
+.header-stat{
+  font-size:.7rem;color:var(--dim);
+  font-family:var(--font-mono);
+}
+.header-stat strong{color:var(--text);font-weight:600}
+
+/* ── Layout ── */
+.layout{
+  display:flex;
+  height:calc(100vh - var(--header-h) - var(--bottom-h));
+  overflow:hidden;
+}
+
+/* ── Sidebars ── */
+.sidebar{
+  width:var(--sidebar-w);flex-shrink:0;
+  background:var(--card);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  overflow-y:auto;overflow-x:hidden;
+  scrollbar-width:thin;
+  scrollbar-color:var(--border) transparent;
+}
+.sidebar.right{
+  border-right:none;
+  border-left:1px solid var(--border);
+}
+.sidebar-section{
+  padding:12px 14px;
+  border-bottom:1px solid var(--border);
+}
+.sidebar-title{
+  font-size:.68rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--muted);
+  margin-bottom:8px;
+}
+
+/* ── Toggle switches ── */
+.layer-toggle{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:4px 0;
+}
+.layer-toggle label{
+  font-size:.72rem;color:var(--text);cursor:pointer;
+  display:flex;align-items:center;gap:6px;
+}
+.layer-toggle .swatch{
+  width:8px;height:8px;border-radius:2px;flex-shrink:0;
+}
+.toggle-switch{
+  position:relative;width:32px;height:18px;flex-shrink:0;
+}
+.toggle-switch input{
+  opacity:0;width:0;height:0;position:absolute;
+}
+.toggle-switch .slider{
+  position:absolute;inset:0;background:var(--border);
+  border-radius:9px;cursor:pointer;
+  transition:background .2s;
+}
+.toggle-switch .slider::before{
+  content:'';position:absolute;
+  width:14px;height:14px;border-radius:50%;
+  background:var(--dim);
+  left:2px;top:2px;
+  transition:transform .2s, background .2s;
+}
+.toggle-switch input:checked + .slider{background:rgba(0,212,255,.3)}
+.toggle-switch input:checked + .slider::before{
+  transform:translateX(14px);background:var(--cyan);
+}
+
+/* ── Sensor list ── */
+.sensor-item{
+  display:flex;align-items:center;gap:8px;
+  padding:5px 0;font-size:.72rem;
+}
+.sensor-dot{
+  width:8px;height:8px;border-radius:50%;flex-shrink:0;
+}
+.sensor-info{flex:1;min-width:0}
+.sensor-name{font-weight:600;color:var(--text)}
+.sensor-pos{font-family:var(--font-mono);font-size:.62rem;color:var(--dim)}
+
+/* ── Room dimensions ── */
+.dim-inputs{display:flex;gap:8px;align-items:center}
+.dim-inputs label{font-size:.66rem;color:var(--dim)}
+.dim-inputs input{
+  width:52px;padding:3px 6px;
+  background:var(--bg);border:1px solid var(--border);
+  border-radius:4px;color:var(--text);
+  font-family:var(--font-mono);font-size:.72rem;
+  text-align:center;
+}
+.dim-inputs input:focus{outline:none;border-color:var(--cyan)}
+.dim-inputs span{font-size:.66rem;color:var(--dim)}
+
+/* ── Canvas area ── */
+.canvas-area{
+  flex:1;min-width:0;
+  position:relative;
+  background:#080c14;
+  overflow:hidden;
+}
+#env-canvas{
+  display:block;width:100%;height:100%;
+}
+
+/* ── Right sidebar: device detail ── */
+.detail-empty{
+  padding:24px 14px;
+  text-align:center;
+  color:var(--dim);font-size:.75rem;
+}
+.detail-empty svg{
+  width:40px;height:40px;fill:var(--dim);opacity:.35;
+  margin-bottom:8px;display:block;margin:0 auto 8px;
+}
+.detail-header{
+  display:flex;align-items:center;gap:8px;
+  margin-bottom:10px;
+}
+.detail-icon{
+  width:32px;height:32px;border-radius:6px;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.detail-icon svg{width:18px;height:18px}
+.detail-type{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.detail-mac{font-family:var(--font-mono);font-size:.68rem;color:var(--muted)}
+
+.detail-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:4px 0;font-size:.7rem;
+  border-bottom:1px solid rgba(30,45,74,.3);
+}
+.detail-row:last-child{border-bottom:none}
+.detail-label{color:var(--dim);font-size:.66rem}
+.detail-value{
+  font-family:var(--font-mono);font-size:.7rem;
+  color:var(--text);text-align:right;
+  max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+
+/* ── Signal gauge ── */
+.gauge-wrap{
+  display:flex;justify-content:center;
+  padding:8px 0;
+}
+.gauge-wrap canvas{display:block}
+
+/* ── Risk badge ── */
+.risk-badge{
+  display:inline-block;
+  padding:2px 7px;border-radius:8px;
+  font-size:.66rem;font-weight:700;
+}
+.risk-low{background:rgba(46,213,115,.15);color:var(--success)}
+.risk-med{background:rgba(255,165,2,.15);color:var(--warn)}
+.risk-high{background:rgba(255,71,87,.15);color:var(--danger)}
+
+/* ── Bottom bar ── */
+.bottom-bar{
+  display:flex;align-items:center;justify-content:space-between;
+  height:var(--bottom-h);padding:0 20px;
+  background:var(--card);
+  border-top:1px solid var(--border);
+  flex-shrink:0;
+}
+.bottom-stats{
+  display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+}
+.bstat{
+  display:flex;align-items:center;gap:4px;
+  font-size:.68rem;color:var(--dim);
+}
+.bstat strong{color:var(--text);font-weight:600;font-family:var(--font-mono)}
+.bstat .dot{
+  width:6px;height:6px;border-radius:50%;flex-shrink:0;
+}
+.bottom-time{
+  font-size:.66rem;color:var(--dim);
+  font-family:var(--font-mono);
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* ── Responsive ── */
+@media(max-width:1100px){
+  :root{--sidebar-w:220px}
+}
+@media(max-width:900px){
+  .sidebar{display:none}
+  .layout{flex-direction:column}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<div class="header">
+  <div class="header-left">
+    <div class="logo">
+      <svg viewBox="0 0 24 24"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 3c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2zm4 13H8v-1c0-2.2 1.8-4 4-4s4 1.8 4 4v1z"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+      5map
+    </div>
+    <span style="color:var(--dim);font-size:.68rem">Environment Monitor</span>
+    <nav class="nav-links">
+      <a class="nav-link" href="index.html">Main Dashboard</a>
+      <a class="nav-link" href="visual-indicators.html">Visual Indicators</a>
+    </nav>
+  </div>
+  <div class="header-right">
+    <div class="status-pill">
+      <span class="status-dot dead" id="conn-dot"></span>
+      <span id="conn-text">STANDBY</span>
+    </div>
+    <span class="header-stat">Devices: <strong id="hdr-devices">0</strong></span>
+    <span class="header-stat">Sensors: <strong id="hdr-sensors">3</strong></span>
+  </div>
+</div>
+
+<!-- ═══ MAIN LAYOUT ═══ -->
+<div class="layout">
+
+  <!-- ── Left Sidebar: Data Layers ── -->
+  <div class="sidebar" id="sidebar-left">
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">Data Layers</div>
+
+      <div class="layer-toggle">
+        <label><span class="swatch" style="background:rgba(0,212,255,.3)"></span>Floor Grid</label>
+        <div class="toggle-switch"><input type="checkbox" id="layer-grid" checked><span class="slider"></span></div>
+      </div>
+      <div class="layer-toggle">
+        <label><span class="swatch" style="background:rgba(0,212,255,.5)"></span>Walls</label>
+        <div class="toggle-switch"><input type="checkbox" id="layer-walls" checked><span class="slider"></span></div>
+      </div>
+      <div class="layer-toggle">
+        <label><span class="swatch" style="background:rgba(255,100,50,.4)"></span>Heatmap</label>
+        <div class="toggle-switch"><input type="checkbox" id="layer-heatmap" checked><span class="slider"></span></div>
+      </div>
+      <div class="layer-toggle">
+        <label><span class="swatch" style="background:var(--success)"></span>WiFi Devices</label>
+        <div class="toggle-switch"><input type="checkbox" id="layer-devices" checked><span class="slider"></span></div>
+      </div>
+      <div class="layer-toggle">
+        <label><span class="swatch" style="background:var(--orange)"></span>Sensors</label>
+        <div class="toggle-switch"><input type="checkbox" id="layer-sensors" checked><span class="slider"></span></div>
+      </div>
+      <div class="layer-toggle">
+        <label><span class="swatch" style="background:var(--text)"></span>Device Labels</label>
+        <div class="toggle-switch"><input type="checkbox" id="layer-devlabels"><span class="slider"></span></div>
+      </div>
+      <div class="layer-toggle">
+        <label><span class="swatch" style="background:var(--cyan)"></span>SSID Labels</label>
+        <div class="toggle-switch"><input type="checkbox" id="layer-ssidlabels" checked><span class="slider"></span></div>
+      </div>
+      <div class="layer-toggle">
+        <label><span class="swatch" style="background:var(--danger)"></span>Risk Halos</label>
+        <div class="toggle-switch"><input type="checkbox" id="layer-riskhalos" checked><span class="slider"></span></div>
+      </div>
+      <div class="layer-toggle">
+        <label><span class="swatch" style="background:var(--purple)"></span>Signal Rings</label>
+        <div class="toggle-switch"><input type="checkbox" id="layer-signalrings"><span class="slider"></span></div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">Sensors</div>
+      <div class="sensor-item">
+        <span class="sensor-dot" style="background:var(--orange)"></span>
+        <div class="sensor-info">
+          <div class="sensor-name">Router</div>
+          <div class="sensor-pos">x:0.5 y:2.5</div>
+        </div>
+        <span id="sensor-router-status" style="font-size:.62rem;color:var(--dim)">--</span>
+      </div>
+      <div class="sensor-item">
+        <span class="sensor-dot" style="background:var(--cyan)"></span>
+        <div class="sensor-info">
+          <div class="sensor-name">ESP32-S2</div>
+          <div class="sensor-pos">x:4.5 y:2.5</div>
+        </div>
+        <span id="sensor-esp32-status" style="font-size:.62rem;color:var(--dim)">--</span>
+      </div>
+      <div class="sensor-item">
+        <span class="sensor-dot" style="background:var(--danger)"></span>
+        <div class="sensor-info">
+          <div class="sensor-name">Pineapple</div>
+          <div class="sensor-pos">x:2.5 y:4.5</div>
+        </div>
+        <span id="sensor-pine-status" style="font-size:.62rem;color:var(--dim)">--</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">Room Dimensions</div>
+      <div class="dim-inputs">
+        <label>W</label>
+        <input type="number" id="room-w" value="5" min="1" max="50" step="0.5">
+        <span>m</span>
+        <label style="margin-left:6px">D</label>
+        <input type="number" id="room-d" value="5" min="1" max="50" step="0.5">
+        <span>m</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Canvas Area ── -->
+  <div class="canvas-area" id="canvas-area">
+    <canvas id="env-canvas"></canvas>
+  </div>
+
+  <!-- ── Right Sidebar: Device Detail ── -->
+  <div class="sidebar right" id="sidebar-right">
+    <div class="sidebar-section" id="detail-panel">
+      <div class="sidebar-title">Device Detail</div>
+      <div class="detail-empty" id="detail-empty">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+        Click a device in the 3D view to inspect its details.
+      </div>
+      <div id="detail-content" style="display:none">
+        <div class="detail-header">
+          <div class="detail-icon" id="detail-icon"></div>
+          <div>
+            <div class="detail-type" id="detail-type"></div>
+            <div class="detail-mac" id="detail-mac"></div>
+          </div>
+        </div>
+        <div class="gauge-wrap"><canvas id="detail-gauge" width="120" height="80"></canvas></div>
+        <div id="detail-rows"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══ BOTTOM BAR ═══ -->
+<div class="bottom-bar">
+  <div class="bottom-stats">
+    <div class="bstat"><span class="dot" style="background:var(--cyan)"></span> Total: <strong id="bs-total">0</strong></div>
+    <div class="bstat"><span class="dot" style="background:var(--purple)"></span> APs: <strong id="bs-aps">0</strong></div>
+    <div class="bstat"><span class="dot" style="background:var(--success)"></span> Phones: <strong id="bs-phones">0</strong></div>
+    <div class="bstat"><span class="dot" style="background:var(--blue)"></span> Laptops: <strong id="bs-laptops">0</strong></div>
+    <div class="bstat"><span class="dot" style="background:var(--warn)"></span> IoT: <strong id="bs-iot">0</strong></div>
+    <div class="bstat"><span class="dot" style="background:var(--dim)"></span> Unknown: <strong id="bs-unknown">0</strong></div>
+    <div class="bstat"><span class="dot" style="background:var(--danger)"></span> High Risk: <strong id="bs-highrisk">0</strong></div>
+  </div>
+  <div class="bottom-time" id="last-update">Last update: --</div>
+</div>
+
+<script src="signal-processing.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* ─────────────────────────────────────────────
+     Helpers
+  ───────────────────────────────────────────── */
+  function $(id) { return document.getElementById(id); }
+  function qs(sel) { return document.querySelector(sel); }
+
+  /* ─────────────────────────────────────────────
+     State
+  ───────────────────────────────────────────── */
+  var state = {
+    devices: [],
+    mapData: null,
+    routerSensor: null,
+    events: [],
+    selectedMac: null
+  };
+
+  var layers = {
+    grid: true, walls: true, heatmap: true, devices: true,
+    sensors: true, devlabels: false, ssidlabels: true,
+    riskhalos: true, signalrings: false
+  };
+
+  /* Sensor positions: Router left, ESP32 right, Pineapple back-center */
+  var sensors = [
+    { x: 0.5, y: 2.5, type: 'router',    label: 'Router' },
+    { x: 4.5, y: 2.5, type: 'esp32',     label: 'ESP32-S2' },
+    { x: 2.5, y: 4.5, type: 'pineapple', label: 'Pineapple' }
+  ];
+
+  var SENSOR_COLORS = { router: '#f97316', esp32: '#00d4ff', pineapple: '#ff4757' };
+  var ROOM_W = 5, ROOM_D = 5, WALL_H = 1.8;
+
+  /* Canvas references */
+  var canvas = $('env-canvas');
+  var ctx = canvas.getContext('2d');
+  var hoveredDevice = null;
+  var isPaused = false;
+
+  /* Computed device positions cache (MAC -> {x,y}) */
+  var devicePositions = {};
+
+  /* ─────────────────────────────────────────────
+     Layer Toggle Binding
+  ───────────────────────────────────────────── */
+  var layerMap = {
+    'layer-grid': 'grid', 'layer-walls': 'walls', 'layer-heatmap': 'heatmap',
+    'layer-devices': 'devices', 'layer-sensors': 'sensors',
+    'layer-devlabels': 'devlabels', 'layer-ssidlabels': 'ssidlabels',
+    'layer-riskhalos': 'riskhalos', 'layer-signalrings': 'signalrings'
+  };
+  Object.keys(layerMap).forEach(function (elId) {
+    var el = $(elId);
+    if (el) {
+      layers[layerMap[elId]] = el.checked;
+      el.addEventListener('change', function () {
+        layers[layerMap[elId]] = el.checked;
+      });
+    }
+  });
+
+  /* ─────────────────────────────────────────────
+     Room dimension inputs
+  ───────────────────────────────────────────── */
+  $('room-w').addEventListener('change', function () {
+    var v = parseFloat(this.value);
+    if (v > 0 && v <= 50) ROOM_W = v;
+  });
+  $('room-d').addEventListener('change', function () {
+    var v = parseFloat(this.value);
+    if (v > 0 && v <= 50) ROOM_D = v;
+  });
+
+  /* ─────────────────────────────────────────────
+     Isometric Projection
+  ───────────────────────────────────────────── */
+  function isoProject(x, y, z, ang, cx, cy, scale) {
+    var ca = Math.cos(ang), sa = Math.sin(ang);
+    var rx = x * ca - y * sa;
+    var ry = x * sa + y * ca;
+    return { x: cx + (rx - ry) * scale, y: cy + (rx + ry) * scale * 0.5 - z * scale * 1.2 };
+  }
+
+  function rssiToDistance(rssi) {
+    return Math.pow(10, (-30 - rssi) / 25);
+  }
+
+  /* ─────────────────────────────────────────────
+     Device Icon Renderer
+  ───────────────────────────────────────────── */
+  function drawDeviceIcon(ctx, type, x, y, size, color, isSelected) {
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = isSelected ? 2 : 1;
+    var s = size || 5;
+    switch ((type || '').toLowerCase()) {
+      case 'phone':
+        var pw = s * 0.57, ph = s;
+        ctx.fillRect(x - pw, y - ph, pw * 2, ph * 2);
+        break;
+      case 'laptop':
+        var lw = s, lh = s * 0.6;
+        ctx.fillRect(x - lw, y - lh, lw * 2, lh * 2);
+        ctx.fillRect(x - lw * 1.2, y + lh, lw * 2.4, s * 0.2);
+        break;
+      case 'ap':
+        ctx.beginPath();
+        ctx.moveTo(x, y - s);
+        ctx.lineTo(x + s * 0.8, y + s * 0.6);
+        ctx.lineTo(x - s * 0.8, y + s * 0.6);
+        ctx.closePath();
+        ctx.fill();
+        break;
+      case 'iot':
+        ctx.beginPath();
+        ctx.moveTo(x, y - s);
+        ctx.lineTo(x + s, y);
+        ctx.lineTo(x, y + s);
+        ctx.lineTo(x - s, y);
+        ctx.closePath();
+        ctx.fill();
+        break;
+      default:
+        ctx.beginPath();
+        ctx.arc(x, y, s * 0.6, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    if (isSelected) {
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(x, y, s + 4, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  /* ─────────────────────────────────────────────
+     Main Scene Renderer
+  ───────────────────────────────────────────── */
+  function drawScene() {
+    var dpr = window.devicePixelRatio || 1;
+    var rect = canvas.parentElement.getBoundingClientRect();
+    var w = rect.width, h = rect.height;
+
+    if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+      canvas.style.width = w + 'px';
+      canvas.style.height = h + 'px';
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+
+    var t = Date.now() / 1000;
+    var ang = isPaused ? 0.78 : (0.78 + Math.sin(t * 0.2) * 0.18);
+    var scale = Math.min(w / (ROOM_W * 1.6), h / (ROOM_D * 1.1)) * 0.55;
+    var cx = w * 0.5, cy = h * 0.4;
+
+    var monoFont = getComputedStyle(document.body).getPropertyValue('--font-mono').trim() || 'monospace';
+
+    function P(x, y, z) {
+      return isoProject(x - ROOM_W / 2, y - ROOM_D / 2, z || 0, ang, cx, cy, scale);
+    }
+
+    /* ── Heatmap on floor ── */
+    var hm = state.mapData && state.mapData.heatmap && state.mapData.heatmap.length > 0
+           ? state.mapData.heatmap : null;
+    if (hm && layers.heatmap) {
+      var rows = hm.length, cols = hm[0].length;
+      for (var gr = 0; gr < rows; gr++) {
+        for (var gc = 0; gc < cols; gc++) {
+          var intensity = Math.max(0, Math.min(1, (hm[gr][gc] + 90) / 60));
+          var fp = P((gc / (cols - 1 || 1)) * ROOM_W, (gr / (rows - 1 || 1)) * ROOM_D, 0);
+          ctx.fillStyle = 'rgba(' +
+            Math.round(255 * (1 - intensity)) + ',' +
+            Math.round(100 + 155 * intensity) + ',' +
+            Math.round(50 + 80 * intensity) + ',' +
+            (0.06 + intensity * 0.22) + ')';
+          ctx.beginPath();
+          ctx.arc(fp.x, fp.y, scale * 0.35, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+
+    /* ── Floor grid ── */
+    if (layers.grid) {
+      ctx.strokeStyle = 'rgba(30,45,74,0.45)';
+      ctx.lineWidth = 0.6;
+      var gridN = 12;
+      for (var gi = 0; gi <= gridN; gi++) {
+        var gvX = (gi / gridN) * ROOM_W;
+        var a1 = P(gvX, 0, 0), a2 = P(gvX, ROOM_D, 0);
+        ctx.beginPath(); ctx.moveTo(a1.x, a1.y); ctx.lineTo(a2.x, a2.y); ctx.stroke();
+        var gvY = (gi / gridN) * ROOM_D;
+        var b1 = P(0, gvY, 0), b2 = P(ROOM_W, gvY, 0);
+        ctx.beginPath(); ctx.moveTo(b1.x, b1.y); ctx.lineTo(b2.x, b2.y); ctx.stroke();
+      }
+    }
+
+    /* ── Floor outline ── */
+    ctx.strokeStyle = 'rgba(0,212,255,0.4)';
+    ctx.lineWidth = 1.5;
+    var f0 = P(0, 0, 0), f1 = P(ROOM_W, 0, 0), f2 = P(ROOM_W, ROOM_D, 0), f3 = P(0, ROOM_D, 0);
+    ctx.beginPath();
+    ctx.moveTo(f0.x, f0.y); ctx.lineTo(f1.x, f1.y);
+    ctx.lineTo(f2.x, f2.y); ctx.lineTo(f3.x, f3.y);
+    ctx.closePath(); ctx.stroke();
+
+    /* ── Dimension labels ── */
+    ctx.font = '600 9px ' + monoFont;
+    ctx.fillStyle = 'rgba(0,212,255,0.35)';
+    ctx.textAlign = 'center';
+    var midFront = P(ROOM_W / 2, 0, 0);
+    ctx.fillText(ROOM_W + 'm', midFront.x, midFront.y + 16);
+    var midLeft = P(0, ROOM_D / 2, 0);
+    ctx.fillText(ROOM_D + 'm', midLeft.x - 16, midLeft.y);
+
+    /* ── Walls ── */
+    if (layers.walls) {
+      ctx.strokeStyle = 'rgba(0,212,255,0.2)';
+      ctx.lineWidth = 1;
+      var wallEdges = [[f0, f1], [f0, f3]];
+      var wallCoords = [
+        [[0, 0], [ROOM_W, 0]],
+        [[0, 0], [0, ROOM_D]]
+      ];
+      for (var wi = 0; wi < wallEdges.length; wi++) {
+        var wc = wallCoords[wi];
+        var wt0 = P(wc[0][0], wc[0][1], WALL_H);
+        var wt1 = P(wc[1][0], wc[1][1], WALL_H);
+        var we0 = wallEdges[wi][0], we1 = wallEdges[wi][1];
+
+        /* Wall face fill */
+        ctx.fillStyle = 'rgba(0,212,255,0.02)';
+        ctx.beginPath();
+        ctx.moveTo(we0.x, we0.y); ctx.lineTo(we1.x, we1.y);
+        ctx.lineTo(wt1.x, wt1.y); ctx.lineTo(wt0.x, wt0.y);
+        ctx.closePath(); ctx.fill();
+
+        /* Wall edges */
+        ctx.beginPath(); ctx.moveTo(wt0.x, wt0.y); ctx.lineTo(wt1.x, wt1.y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(we0.x, we0.y); ctx.lineTo(wt0.x, wt0.y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(we1.x, we1.y); ctx.lineTo(wt1.x, wt1.y); ctx.stroke();
+      }
+
+      /* ── Map-defined internal walls ── */
+      if (state.mapData && state.mapData.walls) {
+        ctx.strokeStyle = 'rgba(255,165,2,0.3)';
+        ctx.lineWidth = 1.5;
+        for (var mwi = 0; mwi < state.mapData.walls.length; mwi++) {
+          var mw = state.mapData.walls[mwi];
+          var mwStart = P(mw.start[0], mw.start[1], 0);
+          var mwEnd = P(mw.end[0], mw.end[1], 0);
+          var mwStartT = P(mw.start[0], mw.start[1], WALL_H * 0.7);
+          var mwEndT = P(mw.end[0], mw.end[1], WALL_H * 0.7);
+          ctx.globalAlpha = mw.confidence || 0.5;
+          ctx.fillStyle = 'rgba(255,165,2,0.04)';
+          ctx.beginPath();
+          ctx.moveTo(mwStart.x, mwStart.y); ctx.lineTo(mwEnd.x, mwEnd.y);
+          ctx.lineTo(mwEndT.x, mwEndT.y); ctx.lineTo(mwStartT.x, mwStartT.y);
+          ctx.closePath(); ctx.fill();
+          ctx.beginPath();
+          ctx.moveTo(mwStart.x, mwStart.y); ctx.lineTo(mwEnd.x, mwEnd.y); ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(mwStartT.x, mwStartT.y); ctx.lineTo(mwEndT.x, mwEndT.y); ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+      }
+    }
+
+    /* ── WiFi Devices ── */
+    devicePositions = {};
+    var devs = state.devices || [];
+    if (layers.devices) {
+      for (var di = 0; di < devs.length; di++) {
+        var dev = devs[di];
+        var classifiedType = SignalProcessing.classifyDevice(dev);
+        var dist = Math.min(rssiToDistance(dev.rssi_dbm || -70), Math.max(ROOM_W, ROOM_D) * 0.7);
+
+        /* MAC-seeded deterministic position */
+        var hash = 0, mac = dev.mac_address || '';
+        for (var ci = 0; ci < mac.length; ci++) hash = ((hash << 5) - hash + mac.charCodeAt(ci)) | 0;
+        var dAng = (Math.abs(hash) % 360) * Math.PI / 180;
+        var dx = Math.max(0.2, Math.min(ROOM_W - 0.2, ROOM_W / 2 + Math.cos(dAng) * dist * 0.45));
+        var dy = Math.max(0.2, Math.min(ROOM_D - 0.2, ROOM_D / 2 + Math.sin(dAng) * dist * 0.45));
+        var dp = P(dx, dy, 0);
+
+        /* Store screen position for hit testing */
+        devicePositions[mac] = { sx: dp.x, sy: dp.y, dev: dev, type: classifiedType };
+
+        var risk = dev.risk_score || 0;
+        var riskRgb = risk >= 0.7 ? '255,71,87' : risk >= 0.3 ? '255,165,2' : '46,213,115';
+        var riskColor = 'rgb(' + riskRgb + ')';
+        var isSelected = (state.selectedMac === mac);
+
+        /* ── Risk halo ── */
+        if (layers.riskhalos && risk >= 0.3) {
+          var haloR = risk >= 0.7 ? 18 : 12;
+          var haloPulse = 0.5 + 0.5 * Math.sin(t * 3 + di * 1.3);
+          ctx.beginPath();
+          ctx.arc(dp.x, dp.y, haloR + haloPulse * 4, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(' + riskRgb + ',' + (risk >= 0.7 ? '0.12' : '0.06') + ')';
+          ctx.fill();
+          if (risk >= 0.7) {
+            ctx.strokeStyle = 'rgba(255,71,87,' + (0.15 + haloPulse * 0.15) + ')';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+          }
+        }
+
+        /* ── Signal rings ── */
+        if (layers.signalrings) {
+          var pct = SignalProcessing.rssiToPercent(dev.rssi_dbm || -80);
+          var ringR = 8 + (pct / 100) * 20;
+          ctx.strokeStyle = 'rgba(' + riskRgb + ',0.15)';
+          ctx.lineWidth = 0.5;
+          ctx.beginPath(); ctx.arc(dp.x, dp.y, ringR, 0, Math.PI * 2); ctx.stroke();
+          ctx.beginPath(); ctx.arc(dp.x, dp.y, ringR * 0.6, 0, Math.PI * 2); ctx.stroke();
+        }
+
+        /* ── Device icon ── */
+        var iconSize = isSelected ? 6 : 4.5;
+        drawDeviceIcon(ctx, classifiedType, dp.x, dp.y, iconSize, riskColor, isSelected);
+
+        /* ── SSID label ── */
+        if (layers.ssidlabels && dev.ssid && dev.ssid !== '-') {
+          ctx.font = '500 7px ' + monoFont;
+          ctx.fillStyle = 'rgba(232,234,237,0.55)';
+          ctx.textAlign = 'center';
+          var ssidText = dev.ssid.length > 12 ? dev.ssid.slice(0, 11) + '..' : dev.ssid;
+          ctx.fillText(ssidText, dp.x, dp.y - (iconSize + 5));
+        }
+
+        /* ── Device label (MAC last 8) ── */
+        if (layers.devlabels) {
+          ctx.font = '400 6px ' + monoFont;
+          ctx.fillStyle = 'rgba(136,146,164,0.45)';
+          ctx.textAlign = 'center';
+          ctx.fillText(mac.slice(-8), dp.x, dp.y + iconSize + 9);
+        }
+      }
+    }
+
+    /* ── Sensors ── */
+    if (layers.sensors) {
+      for (var si = 0; si < sensors.length; si++) {
+        var s = sensors[si];
+        var col = SENSOR_COLORS[s.type] || '#fff';
+        var sp = P(s.x, s.y, 0.1);
+        var sPulse = 0.5 + 0.5 * Math.sin(t * 2 + si * 2.1);
+
+        /* Glow */
+        var grad = ctx.createRadialGradient(sp.x, sp.y, 0, sp.x, sp.y, 14 + sPulse * 5);
+        grad.addColorStop(0, col + '40');
+        grad.addColorStop(1, col + '00');
+        ctx.beginPath(); ctx.arc(sp.x, sp.y, 14 + sPulse * 5, 0, Math.PI * 2);
+        ctx.fillStyle = grad; ctx.fill();
+
+        /* Dot */
+        ctx.beginPath(); ctx.arc(sp.x, sp.y, 4.5, 0, Math.PI * 2);
+        ctx.fillStyle = col; ctx.fill();
+
+        /* Label */
+        ctx.font = '700 8px ' + monoFont;
+        ctx.fillStyle = 'rgba(232,234,237,0.75)';
+        ctx.textAlign = 'center';
+        ctx.fillText(s.label, sp.x, sp.y - 12);
+      }
+    }
+
+    /* ── Legend / watermark ── */
+    ctx.font = '400 8px ' + monoFont;
+    ctx.fillStyle = 'rgba(74,85,104,0.35)';
+    ctx.textAlign = 'right';
+    ctx.fillText('5map Environment Monitor', w - 12, h - 8);
+
+    /* ── No data message ── */
+    if (devs.length === 0 && !hm) {
+      ctx.font = '600 11px ' + monoFont;
+      ctx.fillStyle = 'rgba(0,212,255,0.2)';
+      ctx.textAlign = 'center';
+      ctx.fillText('AWAITING SENSOR DATA', w / 2, h / 2 + 60);
+    }
+  }
+
+  /* ─────────────────────────────────────────────
+     Click / Hover Detection
+  ───────────────────────────────────────────── */
+  canvas.addEventListener('click', function (e) {
+    var rect = canvas.getBoundingClientRect();
+    var mx = e.clientX - rect.left;
+    var my = e.clientY - rect.top;
+    var closest = null, closestDist = 20; /* 20px hit radius */
+
+    Object.keys(devicePositions).forEach(function (mac) {
+      var p = devicePositions[mac];
+      var d = Math.sqrt((p.sx - mx) * (p.sx - mx) + (p.sy - my) * (p.sy - my));
+      if (d < closestDist) {
+        closestDist = d;
+        closest = mac;
+      }
+    });
+
+    state.selectedMac = closest;
+    renderDetailPanel();
+  });
+
+  canvas.addEventListener('mouseenter', function () { isPaused = true; });
+  canvas.addEventListener('mouseleave', function () { isPaused = false; });
+
+  canvas.addEventListener('mousemove', function (e) {
+    var rect = canvas.getBoundingClientRect();
+    var mx = e.clientX - rect.left;
+    var my = e.clientY - rect.top;
+    var found = false;
+    Object.keys(devicePositions).forEach(function (mac) {
+      var p = devicePositions[mac];
+      var d = Math.sqrt((p.sx - mx) * (p.sx - mx) + (p.sy - my) * (p.sy - my));
+      if (d < 16) found = true;
+    });
+    canvas.style.cursor = found ? 'pointer' : 'default';
+  });
+
+  /* ─────────────────────────────────────────────
+     Device Detail Panel
+  ───────────────────────────────────────────── */
+  function renderDetailPanel() {
+    var emptyEl = $('detail-empty');
+    var contentEl = $('detail-content');
+
+    if (!state.selectedMac || !devicePositions[state.selectedMac]) {
+      emptyEl.style.display = '';
+      contentEl.style.display = 'none';
+      return;
+    }
+
+    emptyEl.style.display = 'none';
+    contentEl.style.display = '';
+
+    var pos = devicePositions[state.selectedMac];
+    var dev = pos.dev;
+    var classType = pos.type;
+    var risk = dev.risk_score || 0;
+    var riskColor = risk >= 0.7 ? 'var(--danger)' : risk >= 0.3 ? 'var(--warn)' : 'var(--success)';
+    var riskBg = risk >= 0.7 ? 'rgba(255,71,87,.15)' : risk >= 0.3 ? 'rgba(255,165,2,.15)' : 'rgba(46,213,115,.15)';
+
+    /* Icon */
+    var iconEl = $('detail-icon');
+    iconEl.style.background = riskBg;
+    var iconSvg = '';
+    switch (classType) {
+      case 'phone':
+        iconSvg = '<svg viewBox="0 0 24 24" fill="' + riskColor + '"><rect x="7" y="3" width="10" height="18" rx="2" ry="2"/><circle cx="12" cy="18" r="1"/></svg>';
+        break;
+      case 'laptop':
+        iconSvg = '<svg viewBox="0 0 24 24" fill="' + riskColor + '"><rect x="3" y="4" width="18" height="12" rx="2" ry="2"/><path d="M2 20h20v-2H2z"/></svg>';
+        break;
+      case 'ap':
+        iconSvg = '<svg viewBox="0 0 24 24" fill="' + riskColor + '"><polygon points="12,2 20,16 4,16"/><rect x="11" y="16" width="2" height="4"/><rect x="8" y="20" width="8" height="2"/></svg>';
+        break;
+      case 'iot':
+        iconSvg = '<svg viewBox="0 0 24 24" fill="' + riskColor + '"><polygon points="12,2 22,12 12,22 2,12"/></svg>';
+        break;
+      default:
+        iconSvg = '<svg viewBox="0 0 24 24" fill="' + riskColor + '"><circle cx="12" cy="12" r="8"/></svg>';
+    }
+    iconEl.innerHTML = iconSvg;
+
+    $('detail-type').textContent = classType.toUpperCase();
+    $('detail-type').style.color = riskColor;
+    $('detail-mac').textContent = dev.mac_address;
+
+    /* Signal gauge */
+    var gaugeCanvas = $('detail-gauge');
+    var gCtx = gaugeCanvas.getContext('2d');
+    var gDpr = window.devicePixelRatio || 1;
+    gaugeCanvas.width = 120 * gDpr;
+    gaugeCanvas.height = 80 * gDpr;
+    gaugeCanvas.style.width = '120px';
+    gaugeCanvas.style.height = '80px';
+    gCtx.setTransform(gDpr, 0, 0, gDpr, 0, 0);
+    gCtx.clearRect(0, 0, 120, 80);
+
+    var gaugeItems = SignalProcessing.generateGaugeData({ devices: [dev], bluetooth_devices: [] });
+    if (gaugeItems.length > 0) {
+      SignalProcessing.drawSignalGauge(gCtx, gaugeItems[0], 60, 48, 36, 7);
+    }
+
+    /* Detail rows */
+    var rows = [];
+    rows.push(['SSID', dev.ssid && dev.ssid !== '-' ? dev.ssid : '--']);
+    rows.push(['RSSI', (dev.rssi_dbm || '--') + ' dBm']);
+    rows.push(['Channel', dev.channel || '--']);
+    rows.push(['Auth', dev.auth || '--']);
+    rows.push(['Bandwidth', dev.bandwidth || '--']);
+    rows.push(['Source', dev.source || '--']);
+    rows.push(['Vendor', dev.vendor || '--']);
+
+    var riskClass = risk >= 0.7 ? 'risk-high' : risk >= 0.3 ? 'risk-med' : 'risk-low';
+    var riskLabel = risk >= 0.7 ? 'HIGH' : risk >= 0.3 ? 'MEDIUM' : 'LOW';
+    rows.push(['Risk', '<span class="risk-badge ' + riskClass + '">' + (risk !== undefined ? risk.toFixed(1) : '0') + ' ' + riskLabel + '</span>']);
+
+    if (dev.is_randomized_mac !== undefined) {
+      rows.push(['Randomized MAC', dev.is_randomized_mac ? '<span style="color:var(--warn)">Yes</span>' : 'No']);
+    }
+
+    var est = SignalProcessing.estimateDistance(dev.rssi_dbm || -70, null, null, classType);
+    rows.push(['Est. Distance', est.distance_m + 'm (' + est.quality + ')']);
+
+    if (dev.first_seen) rows.push(['First Seen', formatTime(dev.first_seen)]);
+    if (dev.last_seen) rows.push(['Last Seen', formatTime(dev.last_seen)]);
+    if (dev.scan_count) rows.push(['Scan Count', dev.scan_count]);
+
+    var html = '';
+    for (var ri = 0; ri < rows.length; ri++) {
+      html += '<div class="detail-row"><span class="detail-label">' + rows[ri][0] + '</span><span class="detail-value">' + rows[ri][1] + '</span></div>';
+    }
+    $('detail-rows').innerHTML = html;
+  }
+
+  function formatTime(iso) {
+    if (!iso) return '--';
+    var d = new Date(iso);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+
+  /* ─────────────────────────────────────────────
+     Bottom Bar Stats
+  ───────────────────────────────────────────── */
+  function updateBottomStats() {
+    var devs = state.devices || [];
+    var counts = { ap: 0, phone: 0, laptop: 0, iot: 0, unknown: 0, highRisk: 0 };
+    for (var i = 0; i < devs.length; i++) {
+      var dt = SignalProcessing.classifyDevice(devs[i]);
+      if (counts[dt] !== undefined) counts[dt]++;
+      else counts.unknown++;
+      if ((devs[i].risk_score || 0) >= 0.7) counts.highRisk++;
+    }
+    $('bs-total').textContent = devs.length;
+    $('bs-aps').textContent = counts.ap;
+    $('bs-phones').textContent = counts.phone;
+    $('bs-laptops').textContent = counts.laptop;
+    $('bs-iot').textContent = counts.iot;
+    $('bs-unknown').textContent = counts.unknown;
+    $('bs-highrisk').textContent = counts.highRisk;
+    $('hdr-devices').textContent = devs.length;
+  }
+
+  /* ─────────────────────────────────────────────
+     Header Status
+  ───────────────────────────────────────────── */
+  function updateHeaderStatus() {
+    var rs = state.routerSensor;
+    var stats = rs ? rs.stats || {} : {};
+    var bridge = rs ? rs.bridge_stats || {} : {};
+    var hasData = (stats.observations > 0 || bridge.observation_count > 0);
+    var isSSH = stats.mode === 'ssh';
+    var connected = stats.connected === true || isSSH;
+
+    var dot = $('conn-dot');
+    var txt = $('conn-text');
+
+    if (hasData) {
+      dot.className = 'status-dot live';
+      txt.textContent = 'CONNECTED';
+    } else if (connected) {
+      dot.className = 'status-dot live';
+      txt.textContent = 'WAITING';
+    } else {
+      dot.className = 'status-dot dead';
+      txt.textContent = 'STANDBY';
+    }
+
+    /* Sensor statuses */
+    var routerOk = hasData;
+    $('sensor-router-status').textContent = routerOk ? 'LIVE' : 'OFF';
+    $('sensor-router-status').style.color = routerOk ? 'var(--success)' : 'var(--dim)';
+
+    var hasEsp32 = state.devices.some(function (d) { return d.source === 'esp32s2' || d.source === 'esp32'; });
+    $('sensor-esp32-status').textContent = hasEsp32 ? 'LIVE' : 'OFF';
+    $('sensor-esp32-status').style.color = hasEsp32 ? 'var(--success)' : 'var(--dim)';
+
+    var hasPine = state.devices.some(function (d) {
+      return (d.vendor || '').toLowerCase().indexOf('hak5') >= 0 ||
+             (d.vendor || '').toLowerCase().indexOf('pineapple') >= 0;
+    });
+    $('sensor-pine-status').textContent = hasPine ? 'DETECTED' : 'OFF';
+    $('sensor-pine-status').style.color = hasPine ? 'var(--danger)' : 'var(--dim)';
+
+    $('hdr-sensors').textContent = '3';
+  }
+
+  /* ─────────────────────────────────────────────
+     Data Loading
+  ───────────────────────────────────────────── */
+  var DATA_URL = 'data.json';
+  var POLL_INTERVAL = 5000;
+
+  function loadData() {
+    fetch(DATA_URL, { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        state.devices = data.devices || [];
+        state.mapData = data.map || null;
+        state.routerSensor = data.router_sensor || null;
+        state.events = data.events || [];
+
+        updateBottomStats();
+        updateHeaderStatus();
+        renderDetailPanel();
+
+        $('last-update').textContent = 'Last update: ' + new Date().toLocaleTimeString();
+      })
+      .catch(function (err) {
+        console.warn('5map: data load error', err);
+      });
+  }
+
+  /* ─────────────────────────────────────────────
+     Animation Loop
+  ───────────────────────────────────────────── */
+  var animFrame;
+  function animate() {
+    drawScene();
+    animFrame = requestAnimationFrame(animate);
+  }
+
+  /* ─────────────────────────────────────────────
+     Init
+  ───────────────────────────────────────────── */
+  loadData();
+  setInterval(loadData, POLL_INTERVAL);
+  animate();
+
+  /* Handle resize */
+  window.addEventListener('resize', function () {
+    /* Canvas resize is handled inside drawScene */
+  });
+
+})();
+</script>
+</body>
+</html>
