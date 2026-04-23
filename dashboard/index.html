@@ -511,6 +511,7 @@ a{color:var(--cyan);text-decoration:none}
     <div style="display:flex;align-items:center;gap:4px">
       <a href="index.html" style="font-size:.75rem;color:var(--cyan);padding:4px 10px;border-radius:6px;background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.25)">Main Dashboard</a>
       <a href="visual-indicators.html" style="font-size:.75rem;color:var(--muted);padding:4px 10px;border-radius:6px;border:1px solid transparent;transition:all .15s" onmouseover="this.style.color='var(--cyan)';this.style.background='rgba(0,212,255,.06)';this.style.borderColor='rgba(0,212,255,.15)'" onmouseout="this.style.color='var(--muted)';this.style.background='transparent';this.style.borderColor='transparent'">Visual Indicators</a>
+      <a href="environment.html" style="font-size:.75rem;color:var(--muted);padding:4px 10px;border-radius:6px;border:1px solid transparent;transition:all .15s" onmouseover="this.style.color='var(--orange)';this.style.background='rgba(249,115,22,.06)';this.style.borderColor='rgba(249,115,22,.15)'" onmouseout="this.style.color='var(--muted)';this.style.background='transparent';this.style.borderColor='transparent'">3D Environment</a>
     </div>
     <div class="status-pill">
       <span class="status-dot dead" id="ws-dot"></span>
@@ -1967,8 +1968,8 @@ a{color:var(--cyan);text-decoration:none}
 
   // ── Isometric 3D Room Renderer ──
   var roomSensors = [
-    { x: 0.5, y: 0.5, type: 'router', label: 'Router' },
-    { x: 4.2, y: 1.0, type: 'esp32',  label: 'ESP32' },
+    { x: 0.5, y: 2.5, type: 'router', label: 'Router' },
+    { x: 4.5, y: 2.5, type: 'esp32',  label: 'ESP32' },
     { x: 2.5, y: 4.5, type: 'pineapple', label: 'Pineapple' }
   ];
   var ROOM_W = 5, ROOM_H = 5, WALL_H = 1.8;

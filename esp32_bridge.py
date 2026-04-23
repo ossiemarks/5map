@@ -257,6 +257,17 @@ class ESP32Bridge:
                             self._parse_heartbeat(data)
                         elif msg_type == "boot":
                             logger.info("ESP32 booted: %s", data)
+                        elif "networks" in data:
+                            # MicroPython scanner format: {"timestamp":..., "networks":[...]}
+                            for net in data.get("networks", []):
+                                self._parse_wifi_line({
+                                    "mac": net.get("bssid", ""),
+                                    "ssid": net.get("ssid", "-"),
+                                    "rssi": net.get("rssi", -100),
+                                    "ch": net.get("channel", 0),
+                                    "auth": net.get("auth", "unknown"),
+                                    "bw": "2.4GHz" if net.get("channel", 0) <= 14 else "5GHz",
+                                })
                         else:
                             logger.debug("Unknown message type: %s", msg_type)
 
