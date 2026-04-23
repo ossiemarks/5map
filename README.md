@@ -319,6 +319,7 @@ Real-time visual indicators including device radar, signal strength gauges, chan
 │   │   └── router_csi_sensor.py   # 300m mini router adapter (CH340 serial)
 │   ├── pipeline/
 │   │   ├── frame_router.py        # Normalize sensor data for ML consumption
+│   │   ├── fingerprint_collector.py # Multi-sensor RSSI correlation for positioning
 │   │   ├── buffer.py              # Time-window buffering with backpressure
 │   │   └── transport.py           # Abstract transport (MQTT/Kinesis)
 │   └── config/
@@ -335,9 +336,12 @@ Real-time visual indicators including device radar, signal strength gauges, chan
 │   ├── models/
 │   │   ├── env_mapper.py          # Sparse GP environment mapping + wall detection
 │   │   ├── device_fp.py           # Random Forest device fingerprinting
-│   │   └── presence_lstm.py       # PyTorch LSTM presence detection
+│   │   ├── presence_lstm.py       # PyTorch LSTM presence detection
+│   │   ├── zone_classifier.py     # Random Forest zone positioning (9 zones, 15-dim features)
+│   │   └── movement_tracker.py    # Device tracking with zone transition detection
 │   ├── data/
 │   │   ├── oui_database.py        # 82-entry IEEE OUI vendor lookup
+│   │   ├── fingerprint_db.py      # RSSI fingerprint storage + BiCN statistical features
 │   │   └── synthetic.py           # Synthetic data generators for training
 │   ├── training/
 │   │   └── train_all.py           # Train all 3 models + upload to S3
@@ -383,14 +387,19 @@ Real-time visual indicators including device radar, signal strength gauges, chan
 ├── dashboard/                     # Web dashboards
 │   ├── index.html                 # Main 4-panel audit dashboard
 │   ├── visual-indicators.html     # 6-panel signal intelligence dashboard
-│   ├── signal-processing.js       # Signal analysis algorithm library (1505 lines)
-│   ├── data.json                  # Live capture data (auto-updated)
+│   ├── signal-processing.js       # Signal analysis algorithm library + classifyDevice
+│   ├── environment.html           # Full-page 3D environment with toggleable data layers
+│   ├── data.json                  # Live capture data (auto-updated by bridges)
+│   ├── wifi_data.json             # ESP32 WiFi scan data (bridge output)
+│   ├── ble_data.json              # BLE scan data (scanner output)
 │   └── server.py                  # Local Python proxy server
 │
 ├── pi-edge/                       # Raspberry Pi edge node
 │   └── firstboot.sh               # First-boot: 5map + ESP-IDF + CSI tools
 │
 ├── scripts/                       # Deployment and setup
+│   ├── start_sensors.sh           # Auto-discover and start all sensors + bridges
+│   ├── merge_data.py              # Merge wifi/ble data files into data.json
 │   ├── deploy.sh                  # Terraform deploy with S3 state bootstrap
 │   ├── teardown.sh                # Terraform destroy with confirmation
 │   ├── setup_pineapple.sh         # Configure Pineapple via SSH
@@ -540,6 +549,22 @@ Signal intelligence page with rich animated visualizations.
 - Hover tooltips and click-to-highlight across panels
 - Distance estimation using log-distance path loss model: `d = 10^((TxPower - RSSI) / (10 * 2.7))`
 
+### 3D Environment Monitor (`dashboard/environment.html`)
+
+Full-page isometric 3D room visualization for indoor positioning and movement tracking.
+
+**Features:**
+- Isometric wireframe room (5m × 5m, 1.8m walls) with auto-rotating view
+- Sensor positions: Router (left, orange), ESP32 (right, cyan), Pineapple (back, red)
+- WiFi devices positioned by RSSI-estimated distance with type icons (phone/laptop/AP/IoT/unknown)
+- Risk color coding: green (<0.3), amber (0.3-0.6), red (>0.6)
+- Signal heatmap overlay on floor when map data available
+- Toggleable data layers: Grid, Walls, Heatmap, Devices, Labels, Risk Halos
+- Click device for detail panel (MAC, SSID, RSSI, channel, vendor)
+- Loads `signal-processing.js` for `classifyDevice()` heuristic
+
+**Navigation:** All three dashboard pages linked in header nav bar.
+
 ### Reading the Dashboards
 
 **Signal Map Colors:**
@@ -676,6 +701,55 @@ python -m ml.training.train_all
 ./scripts/deploy_sagemaker.sh [version]
 # Packages artifacts → uploads to S3 → creates SageMaker model
 ```
+
+---
+
+## Indoor Positioning & Movement Tracking
+
+Zone-based indoor positioning using multi-sensor RSSI fingerprinting. Based on the BiCN dual-band WiFi signal fusion approach (Own et al., IEEE Access — 0.99m accuracy with 3 APs).
+
+### Architecture
+
+```
+3 WiFi Sensors (known positions)     Device walks through space
+┌──────────────┐                     ┌─────────────┐
+│ Router (0.5,2.5)  ──── RSSI ────→ │             │
+│ ESP32  (4.5,2.5)  ──── RSSI ────→ │ Fingerprint │ → Zone Classifier → Movement Tracker
+│ Pineapple (2.5,4.5) ── RSSI ────→ │ Collector   │   (Random Forest)   (Zone transitions)
+└──────────────┘                     └─────────────┘
+```
+
+### Zone Grid
+Room divided into 3×3 = 9 zones. Each device produces a 15-dimensional feature vector:
+- 3 raw RSSI values (one per sensor)
+- 12 statistical features (mean, std, skewness, kurtosis per sensor — BiCN method)
+
+### Zone Classifier (`ml/models/zone_classifier.py`)
+| Property | Value |
+|----------|-------|
+| Algorithm | Random Forest (100 estimators) |
+| Input | 15-dim feature vector per device |
+| Output | Zone ID (zone_0_0 to zone_2_2) + confidence score |
+| Training | Synthetic data via log-distance path loss model |
+| Accuracy | ~67-79% on synthetic data (improves with real calibration) |
+
+### Movement Tracker (`ml/models/movement_tracker.py`)
+| Property | Value |
+|----------|-------|
+| Input | Zone predictions per device over time |
+| Output | Device tracks with zone transition history |
+| Confirmation | Zone change requires 2+ consecutive observations |
+| Timeout | Device marked inactive after 60s without observation |
+| Track format | Time-ordered zone visits with enter/leave timestamps |
+
+### Fingerprint Collector (`src/pipeline/fingerprint_collector.py`)
+Correlates the same MAC address observed across multiple sensors within a 2-second window. Computes BiCN statistical features from a rolling history of 20 RSSI readings per sensor per device.
+
+### Research Basis
+- **BiCN Paper**: Dual-band fusion, SVM NLOS detection (>96%), Capsule Networks (0.99m accuracy)
+- **EP3695783A1**: Wireless gait recognition via CSI time-series, Dynamic Time Warping
+- **CSI vs RSSI**: CSI gives 0.5-1.2m positioning (3-5x better than RSSI's 2-5m)
+- See [KNOWLEDGE.md](./KNOWLEDGE.md) for detailed research notes
 
 ---
 
@@ -894,7 +968,7 @@ Dev:   pytest, pytest-asyncio, pytest-cov, ruff
 
 ## Testing
 
-117+ tests covering all components.
+143+ tests covering all components.
 
 ```bash
 pip install -e ".[dev,ml]"
@@ -912,7 +986,8 @@ pytest tests/ -v
 | `test_buffer.py` | Backpressure, concurrent writes |
 | `test_config_schema.py` | Pydantic validation |
 | `test_lambda/` | Lambda preprocessor + API handler |
-| `test_ml/` | GP mapper, RF fingerprinter, LSTM detector |
+| `test_ml/` | GP mapper, RF fingerprinter, LSTM detector, zone classifier |
+| `test_fingerprint_collector.py` | Multi-sensor RSSI correlation, BiCN features |
 | `integration/` | End-to-end pipeline tests |
 
 ---
@@ -921,6 +996,8 @@ pytest tests/ -v
 
 | Script | Usage | Description |
 |--------|-------|-------------|
+| `start_sensors.sh` | `./scripts/start_sensors.sh` | Auto-discover all sensors, validate, start bridges + dashboard. Asks home/field mode |
+| `merge_data.py` | `python scripts/merge_data.py` | Background daemon merging wifi_data.json + ble_data.json → data.json |
 | `deploy.sh` | `./scripts/deploy.sh` | Bootstrap S3 state backend + terraform apply |
 | `teardown.sh` | `./scripts/teardown.sh` | Terraform destroy with confirmation prompt |
 | `setup_pineapple.sh` | `./scripts/setup_pineapple.sh 172.16.42.1` | Copy agent, certs, deps to Pineapple via SSH |
@@ -952,15 +1029,36 @@ Two workflows: React Native for field use (walk site, tag positions, get alerts 
 ### Why Vanilla JS Dashboards (not React)?
 The dashboards are self-contained single HTML files that load from a static `data.json` file or WebSocket. No build step, no bundler, no npm install — just `python3 -m http.server`. Works offline on the Pi.
 
+### Why Zone Classification Over Trilateration?
+With only 3 sensors in a 5m×5m room, trilateration produces unstable position estimates (poor DOP with sensor geometry). Zone classification into 9 regions is more achievable and more useful for security auditing — "device was in the server room zone" is more actionable than "device was at coordinates 2.3, 1.7". Based on BiCN paper results showing Capsule Networks outperform KNN/WKNN at zone-level positioning.
+
+### Why RSSI Over CSI (For Now)?
+CSI gives 3-5x better resolution (0.5-1.2m vs 2-5m) but requires original ESP32 or ESP32-C5/C6 — the ESP32-S2 does not support CSI. Current RSSI approach is adequate for zone-level tracking. CSI upgrade planned when compatible hardware is deployed.
+
 ---
 
 ## Roadmap
 
-- [ ] **ESP32 CSI integration** — Connect real ESP32 CSI data to the CSI Preview panel
+### Completed
+- [x] **3D environment monitor** — Isometric room visualization with device positioning, wireframe toggle, fullscreen mode
+- [x] **Zone classifier** — Random Forest zone positioning using multi-sensor RSSI fingerprints (BiCN approach)
+- [x] **Movement tracker** — Zone transition detection with confirmation, device track history
+- [x] **SSH router bridge** — GL-MT300N-V2 WiFi scanning over SSH (no USB cable needed)
+- [x] **ESP32-S2 firmware fix** — Stable WiFi scanning with graceful CSI fallback
+- [x] **BLE scanner** — Laptop Bluetooth scanning with dashboard integration
+- [x] **Sensor startup script** — Auto-discover, validate, and start all sensors
+
+### In Progress
+- [ ] **Dashboard trajectory rendering** — Spline paths on 3D isometric view showing device movement history
+- [ ] **Behavioral fingerprinting** — Track devices across MAC randomization using probe patterns and RSSI spatial signatures
+- [ ] **5GHz scanning** — MT7612U USB dongle for GL-MT300N (£13.90, The Pi Hut)
+
+### Planned
+- [ ] **ESP32 CSI integration** — Flash original ESP32 with CSI firmware for sub-metre positioning
+- [ ] **CNN-LSTM upgrade** — Add CNN front-end to LSTM for 95%+ HAR accuracy (per research findings)
+- [ ] **Particle filter** — Continuous position tracking when >4 reference points available
 - [ ] **Raspberry Pi edge node** — Local ML inference for <100ms latency
 - [ ] **Cognito auth** — Replace MVP token auth with proper user management
-- [ ] **Push notifications** — Firebase/APNs alerts when app is backgrounded
 - [ ] **Multi-site support** — Multiple Pineapples streaming to the same dashboard
-- [ ] **PDF export** — Server-side report generation with map, device inventory, presence timeline
-- [ ] **Gesture recognition** — Use ESP32 CSI for activity/gesture classification
+- [ ] **Gait recognition** — Per EP3695783A1 patent, identify individuals by walking pattern via CSI
 - [ ] **Multi-floor mapping** — 3D signal mapping across building floors
