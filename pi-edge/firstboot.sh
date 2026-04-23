@@ -128,12 +128,26 @@ hostnamectl set-hostname 5map-edge
 systemctl daemon-reload
 systemctl enable 5map-edge.service
 
+# udev rule: create /dev/esp32 symlink and trigger service on plug-in
+# Covers CP210x (10c4:ea60), CH340 (1a86:7523), CH9102 (1a86:55d4),
+# FTDI (0403:6001), and native ESP32-S2/S3 USB-JTAG (303a:*)
+cat > /etc/udev/rules.d/99-5map-esp32.rules << 'UDEV'
+SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", SYMLINK+="esp32", TAG+="systemd", ENV{SYSTEMD_WANTS}="5map-esp32.service"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", SYMLINK+="esp32", TAG+="systemd", ENV{SYSTEMD_WANTS}="5map-esp32.service"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d4", SYMLINK+="esp32", TAG+="systemd", ENV{SYSTEMD_WANTS}="5map-esp32.service"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", SYMLINK+="esp32", TAG+="systemd", ENV{SYSTEMD_WANTS}="5map-esp32.service"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="303a", SYMLINK+="esp32", TAG+="systemd", ENV{SYSTEMD_WANTS}="5map-esp32.service"
+UDEV
+
+udevadm control --reload-rules
+
 # Create ESP32 BLE+CSI bridge service
 cat > /etc/systemd/system/5map-esp32.service << 'ESP32SVC'
 [Unit]
 Description=5map ESP32 BLE + CSI Bridge
 After=network-online.target
 Wants=network-online.target
+StopWhenUnneeded=true
 
 [Service]
 Type=simple

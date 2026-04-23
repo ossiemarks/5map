@@ -10,13 +10,13 @@ terraform {
 variable "prefix" { type = string }
 variable "domain_name" {
   type    = string
-  default = "spectra.predictiveai.website"
+  default = "5map.voicechatbox.com"
 }
 variable "api_endpoint" { type = string }
 
 # S3 Bucket for static dashboard
 resource "aws_s3_bucket" "dashboard" {
-  bucket = "spectra-predictiveai-website"
+  bucket = "5map-voicechatbox-dashboard"
 
   tags = {
     Name = "${var.prefix}-dashboard"

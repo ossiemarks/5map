@@ -4,8 +4,11 @@ import type { Device, MapData, PresenceEvent, Session, WebSocketMessage } from '
 interface MapSlice {
   mapData: MapData | null;
   positions: Array<{ x: number; y: number; label: string }>;
+  roomWidth: number;
+  roomHeight: number;
   setMapData: (data: MapData) => void;
   addPosition: (pos: { x: number; y: number; label: string }) => void;
+  setRoomDimensions: (width: number, height: number) => void;
   clearMap: () => void;
 }
 
@@ -41,9 +44,12 @@ export const useStore = create<AppState>((set) => ({
   // Map slice
   mapData: null,
   positions: [],
+  roomWidth: 10,
+  roomHeight: 8,
   setMapData: (data) => set({ mapData: data }),
   addPosition: (pos) => set((state) => ({ positions: [...state.positions, pos] })),
-  clearMap: () => set({ mapData: null, positions: [] }),
+  setRoomDimensions: (width, height) => set({ roomWidth: width, roomHeight: height }),
+  clearMap: () => set({ mapData: null, positions: [], roomWidth: 10, roomHeight: 8 }),
 
   // Devices slice
   devices: [],

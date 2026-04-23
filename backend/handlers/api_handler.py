@@ -1,6 +1,7 @@
 """REST API Lambda handler for 5map WiFi environment mapping tool."""
 
 import json
+import logging
 import os
 import re
 import uuid
@@ -9,6 +10,8 @@ from decimal import Decimal
 from typing import Any
 
 import boto3
+
+logger = logging.getLogger(__name__)
 from boto3.dynamodb.conditions import Key
 
 dynamodb = boto3.resource("dynamodb")
@@ -161,13 +164,14 @@ def create_session(event: dict[str, Any]) -> dict[str, Any]:
 
 
 def create_position(event: dict[str, Any]) -> dict[str, Any]:
-    """POST /api/positions - Tag a position within a session."""
+    """POST /api/positions - Tag a position with RSSI snapshot."""
     body = _parse_body(event)
 
     session_id = body.get("session_id")
     x = body.get("x")
     y = body.get("y")
     label = body.get("label")
+    rssi_snapshot = body.get("rssi_snapshot", [])
 
     if not session_id:
         return _response(400, {"error": "session_id is required"})
@@ -175,19 +179,37 @@ def create_position(event: dict[str, Any]) -> dict[str, Any]:
         return _response(400, {"error": "x and y coordinates are required"})
 
     position_id = str(uuid.uuid4())
+    timestamp = datetime.now(timezone.utc).isoformat()
+
+    rssi_values = [float(r.get("rssi_dbm", -100)) for r in rssi_snapshot if r.get("rssi_dbm")]
+
     item = {
         "session_id": session_id,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": timestamp,
         "position_id": position_id,
         "x": Decimal(str(x)),
         "y": Decimal(str(y)),
         "label": label or "",
+        "rssi_snapshot": json.dumps(rssi_snapshot),
+        "rssi_values": json.dumps(rssi_values),
+        "device_count": len(rssi_snapshot),
     }
 
     table = dynamodb.Table(MAPS_TABLE)
     try:
         table.put_item(Item=item)
-        return _response(201, {"position_id": position_id, "position": item})
+
+        result = table.query(KeyConditionExpression=Key("session_id").eq(session_id))
+        positions = result.get("Items", [])
+        position_count = len([p for p in positions if "x" in p and "rssi_values" in p])
+
+        response_body = {"position_id": position_id, "position_count": position_count}
+
+        if position_count >= 3:
+            _generate_and_store_map(session_id, positions)
+            response_body["map_generated"] = True
+
+        return _response(201, response_body)
     except Exception as e:
         return _response(500, {"error": f"Failed to create position: {str(e)}"})
 
@@ -326,6 +348,107 @@ def _lookup_vendor(mac: str) -> str:
         "54:22:E0": "Xiaomi",
     }
     return vendors.get(oui, "Unknown")
+
+
+def _generate_and_store_map(session_id: str, positions: list[dict]) -> None:
+    """Run EnvironmentMapper and store result + push via WebSocket."""
+    try:
+        from ml.models.env_mapper import EnvironmentMapper
+    except ImportError:
+        logger.warning("env_mapper not available, skipping map generation")
+        return
+
+    pos_data = []
+    for p in positions:
+        if "x" not in p or "rssi_values" not in p:
+            continue
+        try:
+            rssi_vals = json.loads(p["rssi_values"]) if isinstance(p["rssi_values"], str) else p["rssi_values"]
+            pos_data.append({
+                "x": float(p["x"]),
+                "y": float(p["y"]),
+                "rssi_values": [float(v) for v in rssi_vals],
+            })
+        except (json.JSONDecodeError, TypeError, ValueError):
+            continue
+
+    if len(pos_data) < 3:
+        return
+
+    try:
+        mapper = EnvironmentMapper(grid_size=30)
+        mapper.fit(pos_data)
+        result = mapper.predict_heatmap()
+    except Exception as e:
+        logger.error("EnvironmentMapper failed: %s", e)
+        return
+
+    table = dynamodb.Table(MAPS_TABLE)
+    timestamp = datetime.now(timezone.utc).isoformat()
+    map_item = {
+        "session_id": session_id,
+        "timestamp": f"map#{timestamp}",
+        "type": "heatmap",
+        "heatmap": json.dumps(result["heatmap"]),
+        "walls": json.dumps(result["walls"]),
+        "grid_bounds": json.dumps(result["grid_bounds"]),
+        "confidence": Decimal(str(round(result["confidence"], 4))),
+        "position_count": len(pos_data),
+    }
+    try:
+        table.put_item(Item=map_item)
+    except Exception as e:
+        logger.error("Failed to store map: %s", e)
+        return
+
+    _push_ws_map_update(session_id, result, timestamp)
+
+
+def _push_ws_map_update(session_id: str, result: dict, timestamp: str) -> None:
+    """Push map update to all WebSocket connections subscribed to this session."""
+    ws_endpoint = os.environ.get("WEBSOCKET_API_ENDPOINT", "")
+    if not ws_endpoint:
+        return
+
+    connections_table = dynamodb.Table(
+        os.environ.get("DYNAMODB_CONNECTIONS_TABLE", "connections")
+    )
+
+    try:
+        resp = connections_table.scan(
+            FilterExpression=boto3.dynamodb.conditions.Attr("session_id").eq(session_id)
+        )
+    except Exception:
+        return
+
+    if not resp.get("Items"):
+        return
+
+    endpoint = ws_endpoint.replace("wss://", "https://").rstrip("/")
+    client = boto3.client("apigatewaymanagementapi", endpoint_url=endpoint)
+
+    payload = json.dumps({
+        "type": "map_update",
+        "session_id": session_id,
+        "data": {
+            "heatmap": result["heatmap"],
+            "walls": result["walls"],
+            "grid_bounds": result["grid_bounds"],
+            "confidence": result["confidence"],
+            "updated_at": timestamp,
+        },
+    })
+
+    for conn in resp["Items"]:
+        try:
+            client.post_to_connection(
+                ConnectionId=conn["connection_id"],
+                Data=payload.encode("utf-8"),
+            )
+        except client.exceptions.GoneException:
+            connections_table.delete_item(Key={"connection_id": conn["connection_id"]})
+        except Exception:
+            pass
 
 
 def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:

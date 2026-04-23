@@ -1,7 +1,15 @@
+export interface RssiReading {
+  mac: string;
+  rssi_dbm: number;
+  channel: number;
+  bandwidth: string;
+}
+
 export interface Position {
   x: number;
   y: number;
   label: string;
+  rssi_snapshot?: RssiReading[];
 }
 
 export interface SensorObservation {

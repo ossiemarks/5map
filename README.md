@@ -49,11 +49,15 @@ WiFi-based environment mapping, device tracking, and presence detection for secu
  │  └────────┬────────────┘                  │ USB Serial            │
  │           │ MQTT/TLS                      │                       │
  │           │                    ┌──────────▼──────────┐            │
- │           │                    │   Raspberry Pi      │            │
- │           │                    │   esp32_bridge.py   │            │
- │           │                    │   Local ML inference│            │
- │           └────────────────────┤   Dashboard server  │            │
- │                                └──────────┬──────────┘            │
+ │  300m Mini Router (CH340)      │   Raspberry Pi      │            │
+ │  ┌─────────────────────┐       │   esp32_bridge.py   │            │
+ │  │ CSI beacon source   │       │   router_bridge.py  │            │
+ │  │ WiFi env sensor     │       │   Local ML inference│            │
+ │  └────────┬────────────┘       │   Dashboard server  │            │
+ │           │ USB Serial         │                     │            │
+ │           └────────────────────┤                     │            │
+ │           ┌────────────────────┤                     │            │
+ │           │ MQTT/TLS           └──────────┬──────────┘            │
  │                                           │ WiFi/LTE              │
  │  React Native App                         │                       │
  │  ┌──────────────┐                         │                       │
@@ -87,6 +91,7 @@ WiFi-based environment mapping, device tracking, and presence detection for secu
 ```
 Pineapple (WiFi frames) ──► MQTT/TLS ──► IoT Core ──► Kinesis ──► Lambda
 ESP32 (BLE + CSI)       ──► Serial   ──► Pi Bridge ──► MQTT ────┘
+Mini Router (beacons + WiFi env) ──► CH340 Serial ──► router_bridge.py ─┘
                                                                   │
 Lambda (preprocessor) ──► DynamoDB (raw storage)                  │
                      ──► S3 (archive)                             │
@@ -165,6 +170,9 @@ differences).
 ### WiFi Pineapple Mark VII — The Sensor
 The Pineapple captures raw WiFi frames in monitor mode across dual radios (2.4GHz + 5GHz), extracting RSSI, MAC addresses, SSIDs, and frame types from every WiFi device in range. It detects MAC randomization, hops across channels, and streams observation windows to AWS via MQTT. Portable and battery-powered — captures and forwards with no ML processing (128MB RAM, MIPS CPU).
 
+### 300m Mini Router — The CSI Beacon Source + WiFi Sensor
+The mini router serves a dual purpose: its WiFi beacons are the signal source that ESP32 modules capture CSI from (body movement between router and ESP32 perturbs the signal across 64 subcarriers), and it independently reports WiFi environment data (connected stations, RSSI, channel utilization, noise floor) via CH340 USB-serial. Replaces the need for a dedicated ESP32 TX module. Connects via `router_bridge.py` which auto-detects the operating mode (JSON/shell/passive) and feeds observations into the sensor pipeline.
+
 ### ESP32 Array — The CSI + BLE Receivers
 3-4 ESP32-WROOM-32 modules (~$5 each) positioned around the space capture:
 - **WiFi CSI**: Per-subcarrier amplitude and phase data (64 subcarriers per device at 20MHz)
@@ -185,8 +193,31 @@ Heavy ML processing, persistent storage, API serving, and multi-client access. I
 
 ## Capabilities
 
-### Environment Mapping
-Walk through a space with the Pineapple, tag positions in the app, and 5map builds a signal strength heatmap with inferred wall positions using Sparse Gaussian Process regression. Walls are detected by gradient magnitude thresholding on the signal heatmap.
+### Environment Mapping (Walk-and-Tag)
+
+Walk through a space with the Pineapple/ESP32 running, tag positions in the mobile app, and 5map builds a signal strength heatmap with inferred wall positions.
+
+**Workflow:**
+1. Start a session in the mobile app, enter room dimensions (width x height in metres)
+2. Walk to a spot in the space
+3. Tap the position on the room grid in the app — app snapshots current RSSI readings from all visible devices
+4. Repeat for as many positions as needed (minimum 3)
+5. Heatmap builds up live as you tag
+
+**Data Flow:**
+```
+Tap grid position → app captures (x, y) in room coordinates
+                  → app fetches GET /api/devices/{session_id} for live RSSI snapshot
+                  → app POSTs /api/positions with { session_id, x, y, label, rssi_snapshot[] }
+                  → app runs local IDW interpolation → instant heatmap preview (< 100ms)
+                  → Lambda triggered by DynamoDB stream on positions table
+                  → Lambda runs EnvironmentMapper.fit() + predict_heatmap()
+                  → writes heatmap + walls to environment-maps table
+                  → WebSocket pushes map_update to connected clients
+                  → app receives GP heatmap + walls → replaces IDW preview (2-5s)
+```
+
+**Dual rendering:** instant IDW preview on the phone for responsiveness, server-side Sparse GP model (with Nystroem approximation) for accurate interpolation and wall detection. Walls are detected by gradient magnitude thresholding — regions where signal drops sharply indicate physical obstacles.
 
 ### Device Discovery
 Identifies every WiFi and Bluetooth device in range: phones, laptops, IoT devices, access points, BLE beacons. Classifies device types using a Random Forest model trained on probe patterns, RSSI variance, and OUI vendor data. Flags rogue APs and suspicious devices with risk scores.
@@ -198,7 +229,7 @@ Monitors zones for entry/exit events, movement patterns, and occupancy using a P
 Identifies devices using randomized MAC addresses (modern iOS/Android behavior) by checking the locally administered bit and fingerprinting probe request patterns.
 
 ### Bluetooth Proximity Tracking
-Classifies BLE devices into proximity rings (Immediate <1m, Near 1-3m, Far 3-10m, Remote >10m) based on RSSI and TX power. Resolves manufacturer from BLE company IDs (Apple, Samsung, Google, etc.).
+Classifies BLE devices into proximity rings (Immediate <1m, Near 1-3m, Far 3-10m, Remote >10m) based on RSSI and TX power. Resolves manufacturer from BLE company IDs (Apple, Samsung, Google, etc.). Service UUIDs are resolved to friendly names (e.g. Heart Rate, Battery Service, Google Eddystone). Devices not seen for 60+ seconds are flagged as "Gone" with dimmed display.
 
 ### Signal Intelligence Visualization
 Real-time visual indicators including device radar, signal strength gauges, channel utilization charts, BLE proximity rings, risk distribution, and ESP32 CSI waveform display.
@@ -213,9 +244,21 @@ Real-time visual indicators including device radar, signal strength gauges, chan
 | Chipsets | MT7612EN (5GHz) + MT7628 (2.4GHz) |
 | Firmware | 2.1.3 |
 | Connection | USB-C to laptop (172.16.42.1) |
-| Radios | wlan0 (AP - honeypots), wlan1 (monitor - capture), wlan2 (managed) |
+| Radios | wlan0 (5GHz monitor — 25 channels incl. DFS), wlan1 (2.4GHz monitor — ch 1,6,11) |
 | Memory | 128MB RAM, MIPS CPU |
 | Power | USB or battery pack |
+
+### 300m Mini Router (CSI Transmitter + WiFi Sensor)
+| Spec | Value |
+|------|-------|
+| Chipset | MT7628 (CH340 USB-serial) |
+| Role | Dual-purpose: CSI beacon source + independent WiFi environment sensor |
+| Connection | USB serial (CH340) to host at 115200 baud |
+| Firmware | OpenWrt or stock (auto-detected) |
+| Bridge | `router_bridge.py` — polls via serial, feeds pipeline |
+| Sensor | `src/sensors/router_csi_sensor.py` — JSON, shell, or passive mode |
+
+**How it fits:** The mini router replaces a dedicated ESP32 TX module. Its WiFi beacons are the signal that the ESP32 RX captures CSI from — when a person walks between the router and the ESP32, the body disrupts the signal across 64 subcarriers, enabling presence and gesture detection. Simultaneously, the router reports its own view of the WiFi environment (connected stations, RSSI, channel utilization, noise floor) as an additional sensor in the pipeline.
 
 ### ESP32 Array
 | Spec | Value |
@@ -233,6 +276,7 @@ Real-time visual indicators including device radar, signal strength gauges, chan
 |------|-------|
 | Role | ESP32 bridge, local ML inference, internet gateway |
 | Setup | `pi-edge/firstboot.sh` (auto-configures 5map + ESP-IDF + CSI tools) |
+| ESP32 Hotplug | udev rule auto-starts `5map-esp32.service` when ESP32 is plugged in (`/dev/esp32` symlink) |
 | Connectivity | WiFi/LTE hotspot for Pineapple |
 
 ---
@@ -263,6 +307,7 @@ Real-time visual indicators including device radar, signal strength gauges, chan
 │   └── sdkconfig.defaults         # ESP-IDF default configuration
 │
 ├── esp32_bridge.py                # Pi-side: reads ESP32 serial, feeds pipeline
+├── router_bridge.py               # Pi-side: reads 300m mini router via CH340, feeds pipeline
 │
 ├── src/                           # Data abstraction layer
 │   ├── sensors/
@@ -270,7 +315,8 @@ Real-time visual indicators including device radar, signal strength gauges, chan
 │   │   ├── registry.py            # Pluggable sensor registration
 │   │   ├── rssi_sensor.py         # Pineapple RSSI adapter
 │   │   ├── ble_sensor.py          # ESP32 BLE adapter + manufacturer DB
-│   │   └── csi_sensor.py          # ESP32 CSI adapter (64 subcarriers)
+│   │   ├── csi_sensor.py          # ESP32 CSI adapter (64 subcarriers)
+│   │   └── router_csi_sensor.py   # 300m mini router adapter (CH340 serial)
 │   ├── pipeline/
 │   │   ├── frame_router.py        # Normalize sensor data for ML consumption
 │   │   ├── buffer.py              # Time-window buffering with backpressure
@@ -452,19 +498,20 @@ pytest tests/ -v
 
 ### Main Dashboard (`dashboard/index.html`)
 
-The primary audit command center with real-time data from the Pineapple and ESP32.
+The primary audit command center with real-time data from the Pineapple, ESP32, and 300m mini router.
 
 **Layout:**
 | Panel | Position | Description |
 |-------|----------|-------------|
 | Signal Map | Top-left (wide) | Canvas heatmap with bilinear interpolation, wall overlays, position markers. Green=strong, Yellow=medium, Red=weak |
 | Stats | Top-right | Total devices, rogue count, randomized MACs, active zones, WebSocket status |
-| WiFi Devices | Bottom-left | Sortable table with type icons, MAC, SSID, vendor, channel, RSSI bars, risk badges |
-| Bluetooth Devices | Bottom-center | BLE/Classic/Beacon table with name, manufacturer, RSSI, TX power, connectable status |
-| Presence Timeline | Bottom-right | Chronological event feed with Entry/Exit/Moving/Stationary markers, confidence scores |
+| WiFi Devices | Bottom row | Sortable table with type icons, MAC, SSID, vendor, channel, RSSI bars, risk badges |
+| Bluetooth Devices | Bottom row | BLE/Classic/Beacon table with name, manufacturer, RSSI, TX power, connectable status |
+| CSI & RSSI Monitor | Bottom row | Router connection status, poll/observation/window/error counts, 64-subcarrier CSI waveform canvas (orange accent) |
+| Presence Timeline | Bottom row | Chronological event feed with Entry/Exit/Moving/Stationary markers, confidence scores |
 
 **Features:**
-- WebSocket real-time updates via `wss://ep8zonl28l.execute-api.eu-west-2.amazonaws.com/prod`
+- WebSocket real-time updates via `wss://ws.voicechatbox.com`
 - 1-second polling fallback when WebSocket is disconnected
 - Session management (create/join/switch sessions)
 - Column sorting on all tables
@@ -520,18 +567,20 @@ Signal intelligence page with rich animated visualizations.
 
 ## Mobile App
 
-React Native (Expo) app for field use during audits.
+React Native (Expo) app for field use during 5G/Bluetooth CSI/RSSI mapping audits.
+
+**Why a mobile app?** You walk around a physical space with your phone running this app, tagging positions while ESP32 sensors and the WiFi Pineapple feed signal data. The app connects via WebSocket to the backend for real-time CSI/RSSI data, then renders heatmaps and device positions as you move. A mobile form factor is essential for this walk-and-map workflow. The web view (`npx expo start` then press `w`) is available for desktop development and monitoring.
 
 **Screens:**
-| Screen | Description |
-|--------|-------------|
-| Map | Interactive signal heatmap with position tagging |
-| Devices | Real-time device list with risk indicators |
-| Presence | Zone activity timeline with movement events |
-| Settings | Session management, API configuration, connection status |
+| Screen | Purpose |
+|--------|---------|
+| Map | Signal heatmap visualization — tag physical positions, see RSSI/CSI coverage build in real-time |
+| Devices | List all detected BLE/WiFi devices with risk indicators and signal strength |
+| Presence | Track device presence and movement events over time per zone |
+| Settings | Configure backend connection, manage audit sessions, view connection status |
 
 **Tech Stack:**
-- React Native + Expo
+- React Native + Expo (cross-platform: iOS, Android, Web)
 - TypeScript
 - Zustand (state management)
 - WebSocket + REST API client
@@ -578,9 +627,10 @@ cd app && npm install && npx expo start
 
 | Service | URL |
 |---------|-----|
-| REST API | `https://dqbhaw5wki.execute-api.eu-west-2.amazonaws.com` |
-| WebSocket | `wss://ep8zonl28l.execute-api.eu-west-2.amazonaws.com/prod` |
+| REST API | `https://api.voicechatbox.com` |
+| WebSocket | `wss://ws.voicechatbox.com` |
 | IoT Core | `a2qz7dpyqsh35h-ats.iot.eu-west-2.amazonaws.com` |
+| Dashboard | `https://5map.voicechatbox.com` |
 | Auth Token | `mvp-token` (Cognito planned) |
 
 ---
@@ -758,6 +808,7 @@ class SensorObservation:
 | `RSSISensor` | Pineapple | WiFi RSSI frames |
 | `BLESensor` | ESP32 | BLE advertisements, names, TX power, service UUIDs |
 | `CSISensor` | ESP32 | 64-subcarrier amplitude + phase per frame |
+| `RouterCSISensor` | 300m Mini Router | WiFi stations, RSSI, channel, noise floor via CH340 serial |
 
 ### Pipeline Flow
 1. **Capture**: Sensor produces raw observations

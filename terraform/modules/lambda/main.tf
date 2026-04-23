@@ -171,15 +171,17 @@ resource "aws_lambda_function" "api_handler" {
   handler          = "api_handler.handler"
   runtime          = "python3.12"
   role             = aws_iam_role.lambda.arn
-  timeout          = 30
-  memory_size      = 256
+  timeout          = 60
+  memory_size      = 512
 
   environment {
     variables = {
-      DYNAMODB_MAPS_TABLE    = var.dynamodb_maps_table
-      DYNAMODB_DEVICE_TABLE  = var.dynamodb_device_table
-      DYNAMODB_PRESENCE_TABLE = var.dynamodb_presence_table
-      DYNAMODB_SESSIONS_TABLE = var.dynamodb_sessions_table
+      DYNAMODB_MAPS_TABLE        = var.dynamodb_maps_table
+      DYNAMODB_DEVICE_TABLE      = var.dynamodb_device_table
+      DYNAMODB_PRESENCE_TABLE    = var.dynamodb_presence_table
+      DYNAMODB_SESSIONS_TABLE    = var.dynamodb_sessions_table
+      DYNAMODB_CONNECTIONS_TABLE = var.dynamodb_connections_table
+      WEBSOCKET_API_ENDPOINT     = var.websocket_api_endpoint
     }
   }
 }

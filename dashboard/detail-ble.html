@@ -151,6 +151,7 @@ a{color:var(--cyan);text-decoration:none}
             <th data-col="adv_count">Adv Count</th>
             <th data-col="first_seen">First Seen</th>
             <th data-col="last_seen">Last Seen</th>
+            <th data-col="status">Status</th>
           </tr>
         </thead>
         <tbody id="ble-tbody"></tbody>
@@ -166,8 +167,65 @@ a{color:var(--cyan);text-decoration:none}
 var COLORS = {
   bg:'#0a0e17',card:'#131a2b',border:'#1e2d4a',
   cyan:'#00d4ff',danger:'#ff4757',warn:'#ffa502',success:'#2ed573',
-  purple:'#a855f7',blue:'#3b82f6',text:'#e8eaed',muted:'#8892a4',dim:'#4a5568'
+  purple:'#a855f7',blue:'#3b82f6',text:'#e8eaed',muted:'#8892a4',dim:'#4a5568',
+  gone:'#6b21a8'
 };
+
+// Seconds after last_seen before flagging device as gone
+var GONE_TIMEOUT = 60;
+
+// Bluetooth SIG assigned 16-bit service UUIDs → friendly names
+var BT_SERVICE_NAMES = {
+  '1800':'Generic Access','1801':'Generic Attribute','1802':'Immediate Alert',
+  '1803':'Link Loss','1804':'Tx Power','1805':'Current Time','1806':'Ref Time Update',
+  '1807':'Next DST Change','1808':'Glucose','1809':'Health Thermometer',
+  '180a':'Device Information','180d':'Heart Rate','180e':'Phone Alert Status',
+  '180f':'Battery Service','1810':'Blood Pressure','1811':'Alert Notification',
+  '1812':'Human Interface Device','1813':'Scan Parameters','1814':'Running Speed & Cadence',
+  '1815':'Automation IO','1816':'Cycling Speed & Cadence','1818':'Cycling Power',
+  '1819':'Location & Navigation','181a':'Environmental Sensing','181b':'Body Composition',
+  '181c':'User Data','181d':'Weight Scale','181e':'Bond Management',
+  '181f':'Continuous Glucose','1820':'Internet Protocol Support','1821':'Indoor Positioning',
+  '1822':'Pulse Oximeter','1823':'HTTP Proxy','1824':'Transport Discovery',
+  '1825':'Object Transfer','1826':'Fitness Machine','1827':'Mesh Provisioning',
+  '1828':'Mesh Proxy','1829':'Reconnection Config',
+  '18f0':'Transport Discovery',
+  'fd6f':'Exposure Notification',
+  'fe07':'Apple Notification Center','fe08':'Apple Media Service',
+  'fe9f':'Google Fast Pair',
+  'fea0':'Google','feb2':'Microsoft','feb9':'Microsoft',
+  'febe':'Bose',
+  'fee7':'Tencent','fef3':'Google/Nest','feaa':'Google Eddystone',
+  'feab':'Nokia','feac':'Nokia','fead':'Tile',
+  'feb0':'Nest','feb1':'Samsung',
+  'fed8':'Google','fede':'Coin',
+  'fff0':'Custom Service 0','fff1':'Custom Service 1',
+  'fff2':'Custom Service 2','fff3':'Custom Service 3',
+  'fff4':'Custom Service 4','fff5':'Custom Service 5',
+  '3082':'Custom (0x3082)'
+};
+
+function resolveServiceName(uuid) {
+  if (!uuid) return uuid;
+  // Extract 16-bit UUID from standard 128-bit Bluetooth SIG format
+  // e.g. 0000180d-0000-1000-8000-00805f9b34fb → 180d
+  var m = uuid.match(/^0000([0-9a-f]{4})-0000-1000-8000-00805f9b34fb$/i);
+  if (m) {
+    var short = m[1].toLowerCase();
+    return BT_SERVICE_NAMES[short] || ('0x' + short.toUpperCase());
+  }
+  // Already a short hex?
+  var s = uuid.toLowerCase().replace(/^0x/,'');
+  if (s.length <= 4 && BT_SERVICE_NAMES[s]) return BT_SERVICE_NAMES[s];
+  // Unknown long UUID — abbreviate
+  return uuid.length > 12 ? uuid.slice(0,8) + '...' : uuid;
+}
+
+function isDeviceGone(d) {
+  if (!d.last_seen) return false;
+  var elapsed = (Date.now() - new Date(d.last_seen).getTime()) / 1000;
+  return elapsed > GONE_TIMEOUT;
+}
 
 var bleDevices = [];
 var searchQuery = '';
@@ -241,14 +299,18 @@ function getFilteredDevices() {
 function buildStats() {
   var total = bleDevices.length;
   var connectable = bleDevices.filter(function(d){ return d.is_connectable; }).length;
-  var imm = bleDevices.filter(function(d){ return d.rssi_dbm > -50; }).length;
-  var near = bleDevices.filter(function(d){ return d.rssi_dbm > -70 && d.rssi_dbm <= -50; }).length;
-  var far = bleDevices.filter(function(d){ return d.rssi_dbm > -85 && d.rssi_dbm <= -70; }).length;
-  var remote = bleDevices.filter(function(d){ return d.rssi_dbm <= -85; }).length;
+  var goneCount = bleDevices.filter(function(d){ return isDeviceGone(d); }).length;
+  var activeCount = total - goneCount;
+  var imm = bleDevices.filter(function(d){ return !isDeviceGone(d) && d.rssi_dbm > -50; }).length;
+  var near = bleDevices.filter(function(d){ return !isDeviceGone(d) && d.rssi_dbm > -70 && d.rssi_dbm <= -50; }).length;
+  var far = bleDevices.filter(function(d){ return !isDeviceGone(d) && d.rssi_dbm > -85 && d.rssi_dbm <= -70; }).length;
+  var remote = bleDevices.filter(function(d){ return !isDeviceGone(d) && d.rssi_dbm <= -85; }).length;
 
-  document.getElementById('ble-total').textContent = total + ' devices';
+  document.getElementById('ble-total').textContent = activeCount + ' active / ' + goneCount + ' gone';
   document.getElementById('stats-bar').innerHTML =
     '<div class="stat-card"><div class="stat-card-value" style="color:var(--purple)">' + total + '</div><div class="stat-card-label">Total BLE</div></div>' +
+    '<div class="stat-card"><div class="stat-card-value" style="color:var(--success)">' + activeCount + '</div><div class="stat-card-label">Active</div></div>' +
+    '<div class="stat-card"><div class="stat-card-value" style="color:var(--gone)">' + goneCount + '</div><div class="stat-card-label">Gone</div></div>' +
     '<div class="stat-card"><div class="stat-card-value" style="color:var(--cyan)">' + connectable + '</div><div class="stat-card-label">Connectable</div></div>' +
     '<div class="stat-card"><div class="stat-card-value" style="color:var(--success)">' + imm + '</div><div class="stat-card-label">Immediate</div></div>' +
     '<div class="stat-card"><div class="stat-card-value" style="color:var(--cyan)">' + near + '</div><div class="stat-card-label">Near</div></div>' +
@@ -275,24 +337,30 @@ function renderTable() {
   var tbody = document.getElementById('ble-tbody');
 
   tbody.innerHTML = devs.map(function(d) {
+    var gone = isDeviceGone(d);
     var prox = rssiProximity(d.rssi_dbm);
-    var services = (d.service_uuids || []).join(', ') || '--';
+    var services = (d.service_uuids || []).map(resolveServiceName).join(', ') || '--';
     var connBadge = d.is_connectable
       ? '<span class="conn-badge" style="background:rgba(46,213,115,.15);color:var(--success)">Yes</span>'
       : '<span class="conn-badge" style="background:rgba(74,85,104,.15);color:var(--dim)">No</span>';
+    var statusBadge = gone
+      ? '<span class="conn-badge" style="background:rgba(107,33,168,.2);color:var(--gone)">Gone</span>'
+      : '<span class="conn-badge" style="background:rgba(46,213,115,.15);color:var(--success)">Active</span>';
+    var rowStyle = gone ? ' style="opacity:.45"' : '';
 
-    return '<tr>' +
+    return '<tr' + rowStyle + '>' +
       '<td class="mac">' + d.mac_address + '</td>' +
       '<td>' + (d.device_name || '--') + '</td>' +
       '<td>' + (d.device_type || '--') + '</td>' +
       '<td>' + (d.manufacturer || 'Unknown') + '</td>' +
-      '<td style="color:' + prox.color + ';font-family:var(--font-mono)">' + d.rssi_dbm + '</td>' +
+      '<td style="color:' + (gone ? COLORS.dim : prox.color) + ';font-family:var(--font-mono)">' + d.rssi_dbm + '</td>' +
       '<td style="font-family:var(--font-mono)">' + (d.tx_power != null ? d.tx_power : '--') + '</td>' +
       '<td>' + connBadge + '</td>' +
-      '<td style="font-size:.58rem;color:var(--dim);max-width:120px;overflow:hidden;text-overflow:ellipsis">' + services + '</td>' +
+      '<td style="font-size:.58rem;color:var(--dim);max-width:180px;overflow:hidden;text-overflow:ellipsis" title="' + (d.service_uuids || []).join(', ') + '">' + services + '</td>' +
       '<td style="font-family:var(--font-mono)">' + (d.adv_count || '--') + '</td>' +
       '<td>' + formatTime(d.first_seen) + '</td>' +
       '<td>' + formatTime(d.last_seen) + '</td>' +
+      '<td>' + statusBadge + '</td>' +
       '</tr>';
   }).join('');
 }
@@ -352,10 +420,16 @@ function drawBLE(canvas, wrap, data, ripple) {
     var ring = rings[ri];
     var rr = ring.rPct * maxR;
     devs.forEach(function(d, di) {
+      var gone = isDeviceGone(d);
       var angle = (di / Math.max(devs.length,1)) * Math.PI*2 - Math.PI/2;
       var x = cx + Math.cos(angle)*rr, y = cy + Math.sin(angle)*rr;
+      ctx.globalAlpha = gone ? 0.25 : 1;
       ctx.beginPath(); ctx.arc(x,y,5,0,Math.PI*2);
-      if (d.is_connectable) {
+      if (gone) {
+        ctx.strokeStyle = COLORS.dim; ctx.lineWidth=1.5;
+        ctx.setLineDash([2,2]); ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle = COLORS.dim+'55'; ctx.fill();
+      } else if (d.is_connectable) {
         ctx.fillStyle = ring.color; ctx.fill();
       } else {
         ctx.strokeStyle = ring.color+'aa'; ctx.lineWidth=1.5;
@@ -363,10 +437,12 @@ function drawBLE(canvas, wrap, data, ripple) {
         ctx.fillStyle = ring.color+'55'; ctx.fill();
       }
       var name = d.device_name || 'Unknown';
+      if (gone) name = '[gone] ' + name;
       ctx.font = (7/r*dpr()) + 'px system-ui';
-      ctx.fillStyle = COLORS.muted;
+      ctx.fillStyle = gone ? COLORS.dim : COLORS.muted;
       ctx.textAlign = x < cx ? 'right' : 'left';
-      ctx.fillText(name.length > 10 ? name.slice(0,10)+'...' : name, x<cx?x-8:x+8, y+3);
+      ctx.fillText(name.length > 14 ? name.slice(0,14)+'...' : name, x<cx?x-8:x+8, y+3);
+      ctx.globalAlpha = 1;
     });
   });
 }

@@ -339,8 +339,9 @@ class ESP32Bridge:
 
 
 def detect_esp32_port() -> str:
-    """Auto-detect the ESP32 serial port."""
+    """Auto-detect the ESP32 serial port. Prefers /dev/esp32 udev symlink."""
     candidates = [
+        "/dev/esp32",
         "/dev/ttyUSB0", "/dev/ttyUSB1",
         "/dev/ttyACM0", "/dev/ttyACM1",
     ]
@@ -348,7 +349,8 @@ def detect_esp32_port() -> str:
         if os.path.exists(port):
             logger.info("Auto-detected ESP32 port: %s", port)
             return port
-    return "/dev/ttyUSB0"
+    logger.warning("No ESP32 port found, will retry on /dev/esp32")
+    return "/dev/esp32"
 
 
 def main():

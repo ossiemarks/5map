@@ -15,7 +15,7 @@ import serial
 
 PORT = "/dev/cu.usbserial-1440"
 BAUD = 115200
-URL  = "https://dqbhaw5wki.execute-api.eu-west-2.amazonaws.com/api/sessions"
+URL  = "https://api.voicechatbox.com/api/sessions"
 
 
 def post(payload: dict):

@@ -6,7 +6,7 @@ import sys
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.request import Request, urlopen
 
-API_URL = "https://dqbhaw5wki.execute-api.eu-west-2.amazonaws.com/api/ingest"
+API_URL = "https://api.voicechatbox.com/api/ingest"
 AUTH_TOKEN = "mvp-token"
 
 

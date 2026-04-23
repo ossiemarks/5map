@@ -21,7 +21,7 @@ SERIAL_PORT = os.environ.get("SERIAL_PORT", "/dev/ttyUSB0")
 BAUD_RATE = int(os.environ.get("BAUD_RATE", "115200"))
 SESSION_ID = os.environ.get("SESSION_ID", "e8076d73-ce66-4ed8-85fb-ef715f8844cf")
 SENSOR_ID = os.environ.get("SENSOR_ID", "pineapple-esp32")
-API_URL = os.environ.get("API_URL", "https://dqbhaw5wki.execute-api.eu-west-2.amazonaws.com/api/ingest")
+API_URL = os.environ.get("API_URL", "https://api.voicechatbox.com/api/ingest")
 AUTH_TOKEN = os.environ.get("AUTH_TOKEN", "mvp-token")
 BATCH_INTERVAL = int(os.environ.get("BATCH_INTERVAL", "5"))
 

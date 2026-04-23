@@ -1,4 +1,4 @@
-import type { Device, MapData, Position, PresenceEvent, Session } from '../types';
+import type { Device, MapData, Position, PresenceEvent, RssiReading, Session } from '../types';
 
 const API_BASE = 'https://api.voicechatbox.com';
 
@@ -52,9 +52,33 @@ export const api = {
   getPresence: (sessionId: string, token?: string) =>
     request<PresenceEvent[]>('GET', `/api/presence/${sessionId}`, undefined, token),
 
-  tagPosition: (sessionId: string, position: Position, token?: string) =>
-    request<{ status: string }>('POST', '/api/positions', {
-      session_id: sessionId,
-      ...position,
-    }, token),
+  tagPosition: async (sessionId: string, position: Position, token?: string) => {
+    // Snapshot current RSSI readings from all visible devices
+    const { data: devicesData } = await request<{ devices: Device[] }>(
+      'GET',
+      `/api/devices/${sessionId}`,
+      undefined,
+      token,
+    );
+
+    const rssiSnapshot: RssiReading[] = (devicesData?.devices || []).map((d) => ({
+      mac: d.mac_address,
+      rssi_dbm: d.rssi_dbm,
+      channel: 0,
+      bandwidth: '',
+    }));
+
+    return request<{ position_id: string; position_count: number; map_generated?: boolean }>(
+      'POST',
+      '/api/positions',
+      {
+        session_id: sessionId,
+        x: position.x,
+        y: position.y,
+        label: position.label,
+        rssi_snapshot: rssiSnapshot,
+      },
+      token,
+    );
+  },
 };

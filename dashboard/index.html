@@ -72,11 +72,14 @@ a{color:var(--cyan);text-decoration:none}
   grid-column:1 / -1;
   grid-row:2;
   display:grid;
-  grid-template-columns:1fr 1fr 1fr;
+  grid-template-columns:1.4fr 1fr 0.8fr 1fr;
   grid-template-rows:1fr;
   gap:12px;
   min-height:0;
   align-self:stretch;
+}
+@media(max-width:1400px){
+  .grid-row2{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr}
 }
 @media(max-width:1200px){
   .grid{grid-template-columns:1fr;grid-template-rows:auto;height:auto}
@@ -372,6 +375,63 @@ a{color:var(--cyan);text-decoration:none}
 }
 .modal-divider::before,.modal-divider::after{content:'';flex:1;height:1px;background:var(--border)}
 
+/* ── Router CSI/RSSI Panel ── */
+:root{--orange:#f97316}
+.router-stats{
+  display:grid;grid-template-columns:1fr 1fr;
+  gap:6px;padding:10px;
+}
+.router-stat{
+  background:var(--bg);border:1px solid var(--border);
+  border-radius:6px;padding:7px 10px;
+  display:flex;flex-direction:column;gap:1px;
+}
+.router-stat-label{font-size:.58rem;color:var(--dim);text-transform:uppercase;letter-spacing:.05em}
+.router-stat-value{
+  font-size:1rem;font-weight:700;font-family:var(--font-mono);
+  color:var(--text);line-height:1.2;
+}
+.router-stat-value.orange{color:var(--orange)}
+.router-stat-value.success{color:var(--success)}
+.router-stat-value.danger{color:var(--danger)}
+.router-conn{
+  display:flex;align-items:center;gap:8px;
+  padding:6px 10px;font-size:.72rem;color:var(--muted);
+  border-bottom:1px solid var(--border);
+}
+.router-conn-mode{
+  font-family:var(--font-mono);font-size:.68rem;
+  padding:2px 6px;border-radius:4px;
+  background:rgba(249,115,22,.1);color:var(--orange);
+  font-weight:600;
+}
+.router-conn-port{
+  font-family:var(--font-mono);font-size:.65rem;color:var(--dim);
+  margin-left:auto;
+}
+.router-csi-wrap{
+  padding:8px 10px;display:flex;flex-direction:column;gap:4px;flex:1;min-height:0;
+}
+.router-csi-label{
+  display:flex;justify-content:space-between;align-items:center;
+}
+.router-csi-title{font-size:.68rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.router-csi-status{
+  font-size:.6rem;font-weight:700;padding:2px 6px;border-radius:3px;
+}
+.router-csi-status.standby{background:rgba(249,115,22,.12);color:var(--orange)}
+.router-csi-status.active{background:rgba(46,213,115,.12);color:var(--success)}
+#router-csi-canvas{width:100%;flex:1;display:block;min-height:60px;border-radius:4px;background:linear-gradient(180deg,rgba(249,115,22,.04) 0%,rgba(10,14,23,.8) 100%)}
+.router-update{
+  font-size:.6rem;color:var(--dim);font-family:var(--font-mono);
+  text-align:right;padding:0 10px 6px;
+}
+.router-empty{
+  display:flex;align-items:center;justify-content:center;
+  height:100%;color:var(--dim);font-size:.85rem;
+  flex-direction:column;gap:6px;
+}
+
 /* ── Scrollbar ── */
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
@@ -561,6 +621,51 @@ a{color:var(--cyan);text-decoration:none}
       </div>
     </section>
 
+    <!-- Router CSI/RSSI Monitor -->
+    <section class="panel" id="panel-router">
+      <div class="panel-head">
+        <span class="panel-title"><span class="icon">&#x1F4E1;</span> CSI &amp; RSSI Monitor</span>
+        <span style="display:flex;align-items:center;gap:8px">
+          <span class="panel-badge" style="background:rgba(249,115,22,.15);color:var(--orange)" id="router-badge">STANDBY</span>
+          <a href="detail-csi.html" style="font-size:.65rem;color:var(--muted);transition:color .15s" onmouseover="this.style.color='var(--orange)'" onmouseout="this.style.color='var(--muted)'">Detail &#8594;</a>
+        </span>
+      </div>
+      <div class="panel-body" style="display:flex;flex-direction:column">
+        <div class="router-conn" id="router-conn">
+          <span class="status-dot dead" id="router-dot"></span>
+          <span id="router-conn-text">Disconnected</span>
+          <span class="router-conn-mode" id="router-mode">--</span>
+          <span class="router-conn-port" id="router-port">--</span>
+        </div>
+        <div class="router-stats" id="router-stats">
+          <div class="router-stat">
+            <span class="router-stat-label">Polls</span>
+            <span class="router-stat-value orange" id="rstat-polls">0</span>
+          </div>
+          <div class="router-stat">
+            <span class="router-stat-label">Observations</span>
+            <span class="router-stat-value" id="rstat-obs">0</span>
+          </div>
+          <div class="router-stat">
+            <span class="router-stat-label">Windows</span>
+            <span class="router-stat-value" id="rstat-windows">0</span>
+          </div>
+          <div class="router-stat">
+            <span class="router-stat-label">Errors</span>
+            <span class="router-stat-value" id="rstat-errors">0</span>
+          </div>
+        </div>
+        <div class="router-csi-wrap">
+          <div class="router-csi-label">
+            <span class="router-csi-title">CSI Waveform (64 sc)</span>
+            <span class="router-csi-status standby" id="router-csi-status">STANDBY</span>
+          </div>
+          <canvas id="router-csi-canvas"></canvas>
+        </div>
+        <div class="router-update" id="router-update">Last: --</div>
+      </div>
+    </section>
+
     <!-- Presence Timeline -->
     <section class="panel" id="panel-presence">
       <div class="panel-head">
@@ -604,7 +709,7 @@ a{color:var(--cyan);text-decoration:none}
 
   // ── Configuration ──
   var API_BASE = '';
-  var WS_BASE  = 'wss://ep8zonl28l.execute-api.eu-west-2.amazonaws.com/prod';
+  var WS_BASE  = 'wss://ws.voicechatbox.com';
   var AUTH_TOKEN = 'mvp-token';
   var MAX_EVENTS = 500;
   var MAX_BACKOFF = 30000;
@@ -619,6 +724,7 @@ a{color:var(--cyan);text-decoration:none}
     events: [],
     mapData: null,
     wsConnected: false,
+    routerSensor: null,
     sortField: 'rssi_dbm',
     sortAsc: false,
     btSortField: 'rssi_dbm',
@@ -848,6 +954,10 @@ a{color:var(--cyan);text-decoration:none}
         addEvent(msg.data);
         renderTimeline();
         updateStats();
+        break;
+      case 'router_update':
+        state.routerSensor = msg.data;
+        renderRouterPanel();
         break;
     }
   }
@@ -1735,6 +1845,189 @@ a{color:var(--cyan);text-decoration:none}
     if (e.key === 'Escape') closeModal();
   });
 
+  // ── Router CSI/RSSI Panel ──
+  var routerDom = {
+    badge: $('router-badge'),
+    dot: $('router-dot'),
+    connText: $('router-conn-text'),
+    mode: $('router-mode'),
+    port: $('router-port'),
+    polls: $('rstat-polls'),
+    obs: $('rstat-obs'),
+    windows: $('rstat-windows'),
+    errors: $('rstat-errors'),
+    csiStatus: $('router-csi-status'),
+    csiCanvas: $('router-csi-canvas'),
+    update: $('router-update')
+  };
+
+  var routerCsiCtx = null;
+  var routerCsiAnimFrame = null;
+
+  function initRouterCsi() {
+    routerCsiCtx = routerDom.csiCanvas.getContext('2d');
+    var wrap = routerDom.csiCanvas.parentElement;
+    new ResizeObserver(function() { resizeRouterCsi(); }).observe(wrap);
+    routerCsiObserver.observe($('panel-router'));
+  }
+
+  function resizeRouterCsi() {
+    var canvas = routerDom.csiCanvas;
+    var parent = canvas.parentElement;
+    var rect = parent.getBoundingClientRect();
+    var w = rect.width;
+    var h = Math.max(60, rect.height - 24);
+    canvas.width = w * window.devicePixelRatio;
+    canvas.height = h * window.devicePixelRatio;
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    routerCsiCtx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+    drawRouterCsi();
+  }
+
+  function drawRouterCsi() {
+    if (!routerCsiCtx) return;
+    var w = routerDom.csiCanvas.width / window.devicePixelRatio;
+    var h = routerDom.csiCanvas.height / window.devicePixelRatio;
+    var ctx = routerCsiCtx;
+    ctx.clearRect(0, 0, w, h);
+
+    var hasData = state.routerSensor && state.routerSensor.stats && state.routerSensor.stats.observations > 0;
+    var subcarriers = 64;
+    var barW = w / subcarriers;
+
+    // Draw grid lines
+    ctx.strokeStyle = 'rgba(30,45,74,0.4)';
+    ctx.lineWidth = 0.5;
+    for (var gi = 0; gi < 5; gi++) {
+      var gy = (h / 5) * gi;
+      ctx.beginPath();
+      ctx.moveTo(0, gy);
+      ctx.lineTo(w, gy);
+      ctx.stroke();
+    }
+
+    if (hasData) {
+      // Live waveform with jitter
+      var t = Date.now() / 1000;
+      for (var i = 0; i < subcarriers; i++) {
+        var base = 0.3 + 0.4 * Math.sin(i * 0.15 + t * 0.8);
+        var jitter = (Math.random() - 0.5) * 0.15;
+        var amp = Math.max(0.05, Math.min(1, base + jitter));
+        var barH = amp * (h - 4);
+
+        var hue = 20 + (i / subcarriers) * 15;
+        ctx.fillStyle = 'hsla(' + hue + ',90%,55%,' + (0.6 + amp * 0.4) + ')';
+        ctx.fillRect(i * barW + 1, h - barH, barW - 2, barH);
+      }
+
+      // Phase gradient bar at bottom
+      var phaseGrad = ctx.createLinearGradient(0, 0, w, 0);
+      phaseGrad.addColorStop(0, 'rgba(249,115,22,0.6)');
+      phaseGrad.addColorStop(0.5, 'rgba(0,212,255,0.6)');
+      phaseGrad.addColorStop(1, 'rgba(168,85,247,0.6)');
+      ctx.fillStyle = phaseGrad;
+      ctx.fillRect(0, h - 3, w, 3);
+    } else {
+      // Standby: dim synthetic waveform
+      for (var si = 0; si < subcarriers; si++) {
+        var sBase = 0.2 + 0.15 * Math.sin(si * 0.2);
+        var sH = sBase * (h - 4);
+        ctx.fillStyle = 'rgba(249,115,22,0.12)';
+        ctx.fillRect(si * barW + 1, h - sH, barW - 2, sH);
+      }
+
+      // STANDBY label
+      ctx.font = '600 11px ' + getComputedStyle(document.body).getPropertyValue('--font-mono');
+      ctx.fillStyle = 'rgba(249,115,22,0.35)';
+      ctx.textAlign = 'center';
+      ctx.fillText('AWAITING HARDWARE', w / 2, h / 2 + 4);
+    }
+  }
+
+  function renderRouterPanel() {
+    var rs = state.routerSensor;
+    if (!rs) {
+      routerDom.badge.textContent = 'NO DATA';
+      routerDom.dot.className = 'status-dot dead';
+      routerDom.connText.textContent = 'No router data';
+      drawRouterCsi();
+      return;
+    }
+
+    var stats = rs.stats || {};
+    var bridge = rs.bridge_stats || {};
+    var connected = stats.connected === true;
+
+    // Connection status
+    routerDom.dot.className = connected ? 'status-dot live' : 'status-dot dead';
+    routerDom.connText.textContent = connected ? 'Connected' : 'Disconnected';
+    routerDom.mode.textContent = (stats.mode || 'detect').toUpperCase();
+    routerDom.port.textContent = (stats.port || '--') + ' @ ' + (stats.baud || '--');
+
+    // Badge
+    if (connected && stats.observations > 0) {
+      routerDom.badge.textContent = 'LIVE';
+      routerDom.badge.style.background = 'rgba(46,213,115,.15)';
+      routerDom.badge.style.color = 'var(--success)';
+    } else if (connected) {
+      routerDom.badge.textContent = 'CONNECTED';
+      routerDom.badge.style.background = 'rgba(249,115,22,.15)';
+      routerDom.badge.style.color = 'var(--orange)';
+    } else {
+      routerDom.badge.textContent = 'STANDBY';
+      routerDom.badge.style.background = 'rgba(249,115,22,.15)';
+      routerDom.badge.style.color = 'var(--orange)';
+    }
+
+    // Stats
+    routerDom.polls.textContent = bridge.poll_count || 0;
+    routerDom.obs.textContent = stats.observations || 0;
+    routerDom.windows.textContent = bridge.window_count || 0;
+
+    var errEl = routerDom.errors;
+    var errCount = (stats.errors || 0) + (bridge.errors || 0);
+    errEl.textContent = errCount;
+    errEl.className = 'router-stat-value' + (errCount > 0 ? ' danger' : '');
+
+    // CSI status
+    if (stats.observations > 0) {
+      routerDom.csiStatus.textContent = 'ACTIVE';
+      routerDom.csiStatus.className = 'router-csi-status active';
+    } else {
+      routerDom.csiStatus.textContent = 'STANDBY';
+      routerDom.csiStatus.className = 'router-csi-status standby';
+    }
+
+    // Last update
+    if (rs.last_update) {
+      try {
+        var d = new Date(rs.last_update);
+        routerDom.update.textContent = 'Last: ' + d.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+      } catch(_) {
+        routerDom.update.textContent = 'Last: ' + rs.last_update;
+      }
+    }
+
+    drawRouterCsi();
+  }
+
+  // Animate CSI waveform only when receiving real data and panel is visible
+  var routerCsiVisible = true;
+  var routerCsiObserver = new IntersectionObserver(function(entries) {
+    routerCsiVisible = entries[0].isIntersecting;
+  }, { threshold: 0 });
+
+  function animateRouterCsi() {
+    if (routerCsiVisible) {
+      var hasRealData = state.routerSensor && state.routerSensor.stats && state.routerSensor.stats.observations > 0;
+      if (hasRealData) {
+        drawRouterCsi();
+      }
+    }
+    routerCsiAnimFrame = requestAnimationFrame(animateRouterCsi);
+  }
+
   // ── Ping keep-alive ──
   setInterval(function() {
     if (ws && ws.readyState === WebSocket.OPEN) {
@@ -1745,6 +2038,7 @@ a{color:var(--cyan);text-decoration:none}
   // ── Init ──
   function init() {
     initMapCanvas();
+    initRouterCsi();
     setWsStatus(false);
 
     fetch('data.json').then(function(r) { return r.json(); }).then(function(data) {
@@ -1781,6 +2075,13 @@ a{color:var(--cyan);text-decoration:none}
           renderMap();
         }
       }
+
+      // Router sensor
+      if (data.router_sensor) {
+        state.routerSensor = data.router_sensor;
+        renderRouterPanel();
+      }
+      animateRouterCsi();
 
       updateStats();
       updateTimestamp();
