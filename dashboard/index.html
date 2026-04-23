@@ -421,7 +421,7 @@ a{color:var(--cyan);text-decoration:none}
 }
 .router-csi-status.standby{background:rgba(249,115,22,.12);color:var(--orange)}
 .router-csi-status.active{background:rgba(46,213,115,.12);color:var(--success)}
-#router-csi-canvas{width:100%;flex:1;display:block;min-height:60px;border-radius:4px;background:linear-gradient(180deg,rgba(249,115,22,.04) 0%,rgba(10,14,23,.8) 100%)}
+#router-csi-canvas{width:100%;flex:1;display:block;min-height:60px;border-radius:4px;background:#080c14}
 .router-update{
   font-size:.6rem;color:var(--dim);font-family:var(--font-mono);
   text-align:right;padding:0 10px 6px;
@@ -431,6 +431,55 @@ a{color:var(--cyan);text-decoration:none}
   height:100%;color:var(--dim);font-size:.85rem;
   flex-direction:column;gap:6px;
 }
+
+/* ── Fullscreen 3D Environment Overlay ── */
+.env-fullscreen{
+  position:fixed;inset:0;z-index:2000;
+  background:rgba(0,0,0,.92);backdrop-filter:blur(6px);
+  display:flex;flex-direction:column;
+  opacity:0;pointer-events:none;transition:opacity .25s;
+}
+.env-fullscreen.open{opacity:1;pointer-events:auto}
+.env-fs-toolbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 20px;flex-shrink:0;
+  border-bottom:1px solid var(--border);
+}
+.env-fs-title{
+  font-size:1rem;font-weight:700;color:var(--text);
+  display:flex;align-items:center;gap:10px;
+}
+.env-fs-controls{display:flex;align-items:center;gap:10px}
+.env-fs-toggle{
+  padding:5px 12px;border-radius:6px;border:1px solid var(--border);
+  background:transparent;color:var(--muted);font-size:.72rem;
+  font-weight:600;cursor:pointer;font-family:var(--font-mono);
+  transition:all .15s;
+}
+.env-fs-toggle:hover{border-color:var(--cyan);color:var(--cyan)}
+.env-fs-toggle.active{background:rgba(0,212,255,.1);border-color:var(--cyan);color:var(--cyan)}
+.env-fs-stat{
+  font-size:.72rem;color:var(--muted);font-family:var(--font-mono);
+  padding:4px 10px;background:rgba(255,255,255,.04);border-radius:6px;
+}
+.env-fs-stat strong{color:var(--cyan)}
+.env-fs-close{
+  width:32px;height:32px;border-radius:6px;border:1px solid var(--border);
+  background:transparent;color:var(--muted);font-size:1.1rem;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:all .15s;
+}
+.env-fs-close:hover{border-color:var(--danger);color:var(--danger);background:rgba(255,71,87,.08)}
+.env-fs-canvas-wrap{flex:1;position:relative;min-height:0}
+#env-fs-canvas{width:100%;height:100%;display:block}
+.env-fs-legend{
+  position:absolute;bottom:16px;left:16px;
+  display:flex;gap:16px;font-size:.68rem;color:var(--muted);
+  background:rgba(10,14,23,.85);padding:8px 14px;border-radius:6px;
+  border:1px solid var(--border);
+}
+.env-fs-legend-item{display:flex;align-items:center;gap:5px}
+.env-fs-legend-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
 
 /* ── Scrollbar ── */
 ::-webkit-scrollbar{width:5px;height:5px}
@@ -621,10 +670,10 @@ a{color:var(--cyan);text-decoration:none}
       </div>
     </section>
 
-    <!-- Router CSI/RSSI Monitor -->
+    <!-- Environment Monitor -->
     <section class="panel" id="panel-router">
       <div class="panel-head">
-        <span class="panel-title"><span class="icon">&#x1F4E1;</span> CSI &amp; RSSI Monitor</span>
+        <span class="panel-title"><span class="icon">&#x1F30D;</span> Environment Monitor</span>
         <span style="display:flex;align-items:center;gap:8px">
           <span class="panel-badge" style="background:rgba(249,115,22,.15);color:var(--orange)" id="router-badge">STANDBY</span>
           <a href="detail-csi.html" style="font-size:.65rem;color:var(--muted);transition:color .15s" onmouseover="this.style.color='var(--orange)'" onmouseout="this.style.color='var(--muted)'">Detail &#8594;</a>
@@ -647,8 +696,8 @@ a{color:var(--cyan);text-decoration:none}
             <span class="router-stat-value" id="rstat-obs">0</span>
           </div>
           <div class="router-stat">
-            <span class="router-stat-label">Windows</span>
-            <span class="router-stat-value" id="rstat-windows">0</span>
+            <span class="router-stat-label">Devices</span>
+            <span class="router-stat-value cyan" id="rstat-devices">0</span>
           </div>
           <div class="router-stat">
             <span class="router-stat-label">Errors</span>
@@ -657,7 +706,7 @@ a{color:var(--cyan);text-decoration:none}
         </div>
         <div class="router-csi-wrap">
           <div class="router-csi-label">
-            <span class="router-csi-title">CSI Waveform (64 sc)</span>
+            <span class="router-csi-title">3D Environment</span>
             <span class="router-csi-status standby" id="router-csi-status">STANDBY</span>
           </div>
           <canvas id="router-csi-canvas"></canvas>
@@ -699,6 +748,33 @@ a{color:var(--cyan);text-decoration:none}
       <button class="btn btn-outline" id="btn-modal-cancel">Cancel</button>
       <button class="btn btn-outline" id="btn-modal-join" disabled>Join Selected</button>
       <button class="btn btn-primary" id="btn-modal-create">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- Fullscreen 3D Environment Overlay -->
+<div class="env-fullscreen" id="env-fullscreen">
+  <div class="env-fs-toolbar">
+    <div class="env-fs-title">
+      <span>&#x1F30D;</span> Environment Monitor
+      <span class="panel-badge" style="background:rgba(46,213,115,.2);color:var(--success)" id="env-fs-badge">CONNECTED</span>
+    </div>
+    <div class="env-fs-controls">
+      <button class="env-fs-toggle" id="env-fs-wireframe">Wireframe</button>
+      <button class="env-fs-toggle" id="env-fs-labels">Labels</button>
+      <span class="env-fs-stat" id="env-fs-stat">Devices: <strong>0</strong></span>
+      <button class="env-fs-close" id="env-fs-close">&times;</button>
+    </div>
+  </div>
+  <div class="env-fs-canvas-wrap">
+    <canvas id="env-fs-canvas"></canvas>
+    <div class="env-fs-legend">
+      <div class="env-fs-legend-item"><span class="env-fs-legend-dot" style="background:#f97316"></span> Router</div>
+      <div class="env-fs-legend-item"><span class="env-fs-legend-dot" style="background:#00d4ff"></span> ESP32</div>
+      <div class="env-fs-legend-item"><span class="env-fs-legend-dot" style="background:#ff4757"></span> Pineapple</div>
+      <div class="env-fs-legend-item"><span class="env-fs-legend-dot" style="background:#2ed573"></span> Low Risk</div>
+      <div class="env-fs-legend-item"><span class="env-fs-legend-dot" style="background:#ffa502"></span> Med Risk</div>
+      <div class="env-fs-legend-item"><span class="env-fs-legend-dot" style="background:#ff4757"></span> High Risk</div>
     </div>
   </div>
 </div>
@@ -1854,7 +1930,7 @@ a{color:var(--cyan);text-decoration:none}
     port: $('router-port'),
     polls: $('rstat-polls'),
     obs: $('rstat-obs'),
-    windows: $('rstat-windows'),
+    devices: $('rstat-devices'),
     errors: $('rstat-errors'),
     csiStatus: $('router-csi-status'),
     csiCanvas: $('router-csi-canvas'),
@@ -1869,7 +1945,11 @@ a{color:var(--cyan);text-decoration:none}
     var wrap = routerDom.csiCanvas.parentElement;
     new ResizeObserver(function() { resizeRouterCsi(); }).observe(wrap);
     routerCsiObserver.observe($('panel-router'));
+    // Pause 3D rotation on hover so users can read labels
+    routerDom.csiCanvas.addEventListener('mouseenter', function() { routerCsiPaused = true; });
+    routerDom.csiCanvas.addEventListener('mouseleave', function() { routerCsiPaused = false; });
   }
+  var routerCsiPaused = false;
 
   function resizeRouterCsi() {
     var canvas = routerDom.csiCanvas;
@@ -1885,65 +1965,223 @@ a{color:var(--cyan);text-decoration:none}
     drawRouterCsi();
   }
 
-  function drawRouterCsi() {
+  // ── Isometric 3D Room Renderer ──
+  var roomSensors = [
+    { x: 0.5, y: 0.5, type: 'router', label: 'Router' },
+    { x: 4.2, y: 1.0, type: 'esp32',  label: 'ESP32' },
+    { x: 2.5, y: 4.5, type: 'pineapple', label: 'Pineapple' }
+  ];
+  var ROOM_W = 5, ROOM_H = 5, WALL_H = 1.8;
+  var SENSOR_COLORS = { router: '#f97316', esp32: '#00d4ff', pineapple: '#ff4757' };
+
+  function rssiToDistance(rssi) {
+    // Log-distance path loss: d = 10^((P0 - RSSI) / (10*n))
+    // P0 = -30 dBm at 1m, n = 2.5 (indoor)
+    return Math.pow(10, (-30 - rssi) / 25);
+  }
+
+  function isoProject(x, y, z, ang, cx, cy, scale) {
+    var ca = Math.cos(ang), sa = Math.sin(ang);
+    var rx = x * ca - y * sa;
+    var ry = x * sa + y * ca;
+    return { x: cx + (rx - ry) * scale, y: cy + (rx + ry) * scale * 0.5 - z * scale * 1.2 };
+  }
+
+  // ── Device icon renderer ──
+  function drawDeviceIcon(ctx, type, x, y, size, color, wireframe) {
+    ctx.save();
+    ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = wireframe ? 1.2 : 1;
+    var s = size || 4;
+    switch ((type || '').toLowerCase()) {
+      case 'phone':
+        var pw = s * 0.57, ph = s;
+        if (wireframe) ctx.strokeRect(x - pw, y - ph, pw * 2, ph * 2);
+        else ctx.fillRect(x - pw, y - ph, pw * 2, ph * 2);
+        break;
+      case 'laptop':
+        var lw = s, lh = s * 0.6;
+        if (wireframe) {
+          ctx.strokeRect(x - lw, y - lh, lw * 2, lh * 2);
+          ctx.beginPath(); ctx.moveTo(x - lw * 1.2, y + lh); ctx.lineTo(x + lw * 1.2, y + lh); ctx.stroke();
+        } else {
+          ctx.fillRect(x - lw, y - lh, lw * 2, lh * 2);
+          ctx.fillRect(x - lw * 1.2, y + lh, lw * 2.4, s * 0.2);
+        }
+        break;
+      case 'ap':
+        ctx.beginPath(); ctx.moveTo(x, y - s); ctx.lineTo(x + s * 0.8, y + s * 0.6); ctx.lineTo(x - s * 0.8, y + s * 0.6); ctx.closePath();
+        if (wireframe) ctx.stroke(); else ctx.fill();
+        break;
+      case 'iot':
+        ctx.beginPath(); ctx.moveTo(x, y - s); ctx.lineTo(x + s, y); ctx.lineTo(x, y + s); ctx.lineTo(x - s, y); ctx.closePath();
+        if (wireframe) ctx.stroke(); else ctx.fill();
+        break;
+      default:
+        ctx.beginPath(); ctx.arc(x, y, s * 0.6, 0, Math.PI * 2);
+        if (wireframe) ctx.stroke(); else ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // ── Shared isometric room scene renderer ──
+  function drawRoomScene(ctx, w, h, devices, mapData, sensors, wireframe, showLabels) {
+    ctx.clearRect(0, 0, w, h);
+    var t = Date.now() / 1000;
+    var ang = routerCsiPaused ? 0.78 : (0.78 + Math.sin(t * 0.3) * 0.13);
+    var scale = Math.min(w / 7.5, h / 5) * 0.7;
+    var cx = w * 0.5, cy = h * 0.38;
+    var wf = !!wireframe;
+    var monoFont = getComputedStyle(document.body).getPropertyValue('--font-mono');
+    function P(x, y, z) { return isoProject(x - ROOM_W / 2, y - ROOM_H / 2, z || 0, ang, cx, cy, scale); }
+
+    // ── Signal heatmap on floor (skip in wireframe) ──
+    var hm = mapData && mapData.heatmap && mapData.heatmap.length > 0 ? mapData.heatmap : null;
+    if (hm && !wf) {
+      var rows = hm.length, cols = hm[0].length;
+      for (var gr = 0; gr < rows; gr++) {
+        for (var gc = 0; gc < cols; gc++) {
+          var intensity = Math.max(0, Math.min(1, (hm[gr][gc] + 90) / 60));
+          var fp = P((gc / (cols - 1 || 1)) * ROOM_W, (gr / (rows - 1 || 1)) * ROOM_H, 0);
+          ctx.fillStyle = 'rgba(' + Math.round(255 * (1 - intensity)) + ',' + Math.round(100 + 155 * intensity) + ',' + Math.round(50 + 80 * intensity) + ',' + (0.08 + intensity * 0.18) + ')';
+          ctx.beginPath(); ctx.arc(fp.x, fp.y, scale * 0.28, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+    }
+
+    // ── Floor grid ──
+    ctx.strokeStyle = wf ? 'rgba(0,212,255,0.25)' : 'rgba(30,45,74,0.5)';
+    ctx.lineWidth = wf ? 0.5 : 0.7;
+    var gridN = wf ? 15 : 10;
+    for (var gi = 0; gi <= gridN; gi++) {
+      var gv = (gi / gridN) * ROOM_W;
+      var a1 = P(gv, 0, 0), a2 = P(gv, ROOM_H, 0);
+      ctx.beginPath(); ctx.moveTo(a1.x, a1.y); ctx.lineTo(a2.x, a2.y); ctx.stroke();
+      var b1 = P(0, gv, 0), b2 = P(ROOM_W, gv, 0);
+      ctx.beginPath(); ctx.moveTo(b1.x, b1.y); ctx.lineTo(b2.x, b2.y); ctx.stroke();
+    }
+
+    // ── Floor outline ──
+    ctx.strokeStyle = wf ? 'rgba(0,212,255,0.6)' : 'rgba(0,212,255,0.35)';
+    ctx.lineWidth = wf ? 1.5 : 1.2;
+    var f0 = P(0,0,0), f1 = P(ROOM_W,0,0), f2 = P(ROOM_W,ROOM_H,0), f3 = P(0,ROOM_H,0);
+    ctx.beginPath(); ctx.moveTo(f0.x,f0.y); ctx.lineTo(f1.x,f1.y); ctx.lineTo(f2.x,f2.y); ctx.lineTo(f3.x,f3.y); ctx.closePath(); ctx.stroke();
+
+    // ── Walls (dashed in wireframe) ──
+    if (wf) { ctx.setLineDash([6, 4]); ctx.strokeStyle = 'rgba(0,212,255,0.35)'; }
+    else { ctx.setLineDash([]); ctx.strokeStyle = 'rgba(0,212,255,0.2)'; }
+    ctx.lineWidth = 1;
+    var wallEdges = [[f0, f1], [f0, f3]];
+    for (var wi = 0; wi < wallEdges.length; wi++) {
+      var wIdx = wi === 0 ? [[0,0],[ROOM_W,0]] : [[0,0],[0,ROOM_H]];
+      var t0 = P(wIdx[0][0], wIdx[0][1], WALL_H), t1 = P(wIdx[1][0], wIdx[1][1], WALL_H);
+      var e0 = wallEdges[wi][0], e1 = wallEdges[wi][1];
+      ctx.beginPath(); ctx.moveTo(t0.x, t0.y); ctx.lineTo(t1.x, t1.y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(e0.x, e0.y); ctx.lineTo(t0.x, t0.y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(e1.x, e1.y); ctx.lineTo(t1.x, t1.y); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    // ── Detected WiFi devices (type-specific icons) ──
+    var devs = devices || [];
+    for (var di = 0; di < devs.length; di++) {
+      var dev = devs[di];
+      var dist = Math.min(rssiToDistance(dev.rssi_dbm || -70), ROOM_W * 0.7);
+      var hash = 0, mac = dev.mac_address || '';
+      for (var ci = 0; ci < mac.length; ci++) hash = ((hash << 5) - hash + mac.charCodeAt(ci)) | 0;
+      var dAng = (Math.abs(hash) % 360) * Math.PI / 180;
+      var dx = Math.max(0.2, Math.min(ROOM_W - 0.2, ROOM_W / 2 + Math.cos(dAng) * dist * 0.45));
+      var dy = Math.max(0.2, Math.min(ROOM_H - 0.2, ROOM_H / 2 + Math.sin(dAng) * dist * 0.45));
+      var dp = P(dx, dy, 0);
+      var riskRgb = dev.risk_score >= 0.7 ? '255,71,87' : dev.risk_score >= 0.3 ? '255,165,2' : '46,213,115';
+      var riskColor = wf ? ('rgb(' + riskRgb + ')') : ('rgb(' + riskRgb + ')');
+      if (!wf) {
+        ctx.beginPath(); ctx.arc(dp.x, dp.y, 5, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(' + riskRgb + ',' + (dev.risk_score >= 0.7 ? '0.25' : '0.12') + ')'; ctx.fill();
+      }
+      drawDeviceIcon(ctx, dev.device_type, dp.x, dp.y, wf ? 4 : 3.5, riskColor, wf);
+      if (showLabels && dev.ssid && dev.ssid !== '-') {
+        ctx.font = '500 6px ' + monoFont;
+        ctx.fillStyle = wf ? 'rgba(0,212,255,0.6)' : 'rgba(232,234,237,0.55)';
+        ctx.textAlign = 'center';
+        ctx.fillText(dev.ssid.length > 10 ? dev.ssid.slice(0, 9) + '..' : dev.ssid, dp.x, dp.y - 7);
+      }
+    }
+
+    // ── Sensors (glowing in normal, outlined in wireframe) ──
+    for (var si = 0; si < sensors.length; si++) {
+      var s = sensors[si], col = SENSOR_COLORS[s.type] || '#fff';
+      var sp = P(s.x, s.y, 0.1), pulse = 0.5 + 0.5 * Math.sin(t * 2 + si * 2.1);
+      if (wf) {
+        ctx.strokeStyle = col; ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.arc(sp.x, sp.y, 3.5, 0, Math.PI * 2); ctx.stroke();
+      } else {
+        var grad = ctx.createRadialGradient(sp.x, sp.y, 0, sp.x, sp.y, 10 + pulse * 4);
+        grad.addColorStop(0, col.slice(0, 7) + '40'); grad.addColorStop(1, col.slice(0, 7) + '00');
+        ctx.beginPath(); ctx.arc(sp.x, sp.y, 10 + pulse * 4, 0, Math.PI * 2); ctx.fillStyle = grad; ctx.fill();
+        ctx.beginPath(); ctx.arc(sp.x, sp.y, 3.5, 0, Math.PI * 2); ctx.fillStyle = col; ctx.fill();
+      }
+      ctx.font = '600 7px ' + monoFont;
+      ctx.fillStyle = wf ? 'rgba(0,212,255,0.5)' : 'rgba(232,234,237,0.7)';
+      ctx.textAlign = 'center'; ctx.fillText(s.label, sp.x, sp.y - 10);
+    }
+
+    if (devs.length === 0 && !hm) {
+      ctx.font = '600 9px ' + monoFont; ctx.fillStyle = 'rgba(0,212,255,0.25)'; ctx.textAlign = 'center';
+      ctx.fillText('AWAITING SENSOR DATA', w / 2, h - 8);
+    }
+  }
+
+  // ── In-panel 3D room (delegates to shared renderer) ──
+  function drawRoom3D() {
     if (!routerCsiCtx) return;
     var w = routerDom.csiCanvas.width / window.devicePixelRatio;
     var h = routerDom.csiCanvas.height / window.devicePixelRatio;
-    var ctx = routerCsiCtx;
-    ctx.clearRect(0, 0, w, h);
-
-    var hasData = state.routerSensor && state.routerSensor.stats && state.routerSensor.stats.observations > 0;
-    var subcarriers = 64;
-    var barW = w / subcarriers;
-
-    // Draw grid lines
-    ctx.strokeStyle = 'rgba(30,45,74,0.4)';
-    ctx.lineWidth = 0.5;
-    for (var gi = 0; gi < 5; gi++) {
-      var gy = (h / 5) * gi;
-      ctx.beginPath();
-      ctx.moveTo(0, gy);
-      ctx.lineTo(w, gy);
-      ctx.stroke();
-    }
-
-    if (hasData) {
-      // Live waveform with jitter
-      var t = Date.now() / 1000;
-      for (var i = 0; i < subcarriers; i++) {
-        var base = 0.3 + 0.4 * Math.sin(i * 0.15 + t * 0.8);
-        var jitter = (Math.random() - 0.5) * 0.15;
-        var amp = Math.max(0.05, Math.min(1, base + jitter));
-        var barH = amp * (h - 4);
-
-        var hue = 20 + (i / subcarriers) * 15;
-        ctx.fillStyle = 'hsla(' + hue + ',90%,55%,' + (0.6 + amp * 0.4) + ')';
-        ctx.fillRect(i * barW + 1, h - barH, barW - 2, barH);
-      }
-
-      // Phase gradient bar at bottom
-      var phaseGrad = ctx.createLinearGradient(0, 0, w, 0);
-      phaseGrad.addColorStop(0, 'rgba(249,115,22,0.6)');
-      phaseGrad.addColorStop(0.5, 'rgba(0,212,255,0.6)');
-      phaseGrad.addColorStop(1, 'rgba(168,85,247,0.6)');
-      ctx.fillStyle = phaseGrad;
-      ctx.fillRect(0, h - 3, w, 3);
-    } else {
-      // Standby: dim synthetic waveform
-      for (var si = 0; si < subcarriers; si++) {
-        var sBase = 0.2 + 0.15 * Math.sin(si * 0.2);
-        var sH = sBase * (h - 4);
-        ctx.fillStyle = 'rgba(249,115,22,0.12)';
-        ctx.fillRect(si * barW + 1, h - sH, barW - 2, sH);
-      }
-
-      // STANDBY label
-      ctx.font = '600 11px ' + getComputedStyle(document.body).getPropertyValue('--font-mono');
-      ctx.fillStyle = 'rgba(249,115,22,0.35)';
-      ctx.textAlign = 'center';
-      ctx.fillText('AWAITING HARDWARE', w / 2, h / 2 + 4);
-    }
+    drawRoomScene(routerCsiCtx, w, h, state.devices, state.mapData, roomSensors, false, false);
   }
+
+  // ── Fullscreen 3D environment overlay ──
+  var envFsOverlay = $('env-fullscreen'), envFsCanvas = $('env-fs-canvas');
+  var envFsCtx = null, envFsWireframe = false, envFsLabels = false, envFsOpen = false, envFsAnimFrame = null;
+
+  function drawRoom3DFullscreen(ctx, w, h, devices, mapData, sensors, wireframe) {
+    drawRoomScene(ctx, w, h, devices, mapData, sensors, wireframe, envFsLabels);
+  }
+  function resizeEnvFs() {
+    if (!envFsCanvas) return;
+    var rect = envFsCanvas.parentElement.getBoundingClientRect();
+    envFsCanvas.width = rect.width * window.devicePixelRatio;
+    envFsCanvas.height = rect.height * window.devicePixelRatio;
+    envFsCanvas.style.width = rect.width + 'px';
+    envFsCanvas.style.height = rect.height + 'px';
+    if (envFsCtx) envFsCtx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+  }
+  function animateEnvFs() {
+    if (!envFsOpen) return;
+    var w = envFsCanvas.width / window.devicePixelRatio, h = envFsCanvas.height / window.devicePixelRatio;
+    drawRoom3DFullscreen(envFsCtx, w, h, state.devices, state.mapData, roomSensors, envFsWireframe);
+    $('env-fs-stat').innerHTML = 'Devices: <strong>' + (state.devices || []).length + '</strong>';
+    envFsAnimFrame = requestAnimationFrame(animateEnvFs);
+  }
+  function openEnvFs() {
+    envFsOpen = true; envFsOverlay.classList.add('open');
+    if (!envFsCtx) envFsCtx = envFsCanvas.getContext('2d');
+    resizeEnvFs(); animateEnvFs();
+  }
+  function closeEnvFs() {
+    envFsOpen = false; envFsOverlay.classList.remove('open');
+    if (envFsAnimFrame) { cancelAnimationFrame(envFsAnimFrame); envFsAnimFrame = null; }
+  }
+  routerDom.csiCanvas.addEventListener('dblclick', openEnvFs);
+  $('panel-router').addEventListener('click', function(e) { if (!e.target.closest('a')) openEnvFs(); });
+  $('env-fs-close').addEventListener('click', closeEnvFs);
+  envFsOverlay.addEventListener('click', function(e) { if (e.target === envFsOverlay) closeEnvFs(); });
+  document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && envFsOpen) closeEnvFs(); });
+  $('env-fs-wireframe').addEventListener('click', function(e) { e.stopPropagation(); envFsWireframe = !envFsWireframe; this.classList.toggle('active', envFsWireframe); });
+  $('env-fs-labels').addEventListener('click', function(e) { e.stopPropagation(); envFsLabels = !envFsLabels; this.classList.toggle('active', envFsLabels); });
+  new ResizeObserver(function() { if (envFsOpen) resizeEnvFs(); }).observe(envFsCanvas.parentElement);
+
+  // Keep old name as alias so renderRouterPanel calls still work
+  var drawRouterCsi = drawRoom3D;
 
   function renderRouterPanel() {
     var rs = state.routerSensor;
@@ -1957,33 +2195,35 @@ a{color:var(--cyan);text-decoration:none}
 
     var stats = rs.stats || {};
     var bridge = rs.bridge_stats || {};
-    var connected = stats.connected === true;
+    var isSSH = stats.mode === 'ssh';
+    var connected = stats.connected === true || isSSH;
 
     // Connection status
     routerDom.dot.className = connected ? 'status-dot live' : 'status-dot dead';
     routerDom.connText.textContent = connected ? 'Connected' : 'Disconnected';
     routerDom.mode.textContent = (stats.mode || 'detect').toUpperCase();
-    routerDom.port.textContent = (stats.port || '--') + ' @ ' + (stats.baud || '--');
+    routerDom.port.textContent = isSSH ? 'WiFi SSH' : ((stats.port || '--') + ' @ ' + (stats.baud || '--'));
 
-    // Badge
-    if (connected && stats.observations > 0) {
-      routerDom.badge.textContent = 'LIVE';
-      routerDom.badge.style.background = 'rgba(46,213,115,.15)';
+    // Badge — show CONNECTED prominently when data is flowing
+    var hasData = stats.observations > 0 || bridge.observation_count > 0;
+    if (hasData) {
+      routerDom.badge.textContent = 'CONNECTED';
+      routerDom.badge.style.background = 'rgba(46,213,115,.2)';
       routerDom.badge.style.color = 'var(--success)';
     } else if (connected) {
-      routerDom.badge.textContent = 'CONNECTED';
+      routerDom.badge.textContent = 'WAITING';
       routerDom.badge.style.background = 'rgba(249,115,22,.15)';
       routerDom.badge.style.color = 'var(--orange)';
     } else {
       routerDom.badge.textContent = 'STANDBY';
-      routerDom.badge.style.background = 'rgba(249,115,22,.15)';
-      routerDom.badge.style.color = 'var(--orange)';
+      routerDom.badge.style.background = 'rgba(255,71,87,.12)';
+      routerDom.badge.style.color = 'var(--danger)';
     }
 
     // Stats
     routerDom.polls.textContent = bridge.poll_count || 0;
     routerDom.obs.textContent = stats.observations || 0;
-    routerDom.windows.textContent = bridge.window_count || 0;
+    routerDom.devices.textContent = state.devices.length;
 
     var errEl = routerDom.errors;
     var errCount = (stats.errors || 0) + (bridge.errors || 0);
@@ -2020,10 +2260,7 @@ a{color:var(--cyan);text-decoration:none}
 
   function animateRouterCsi() {
     if (routerCsiVisible) {
-      var hasRealData = state.routerSensor && state.routerSensor.stats && state.routerSensor.stats.observations > 0;
-      if (hasRealData) {
-        drawRouterCsi();
-      }
+      drawRouterCsi();
     }
     routerCsiAnimFrame = requestAnimationFrame(animateRouterCsi);
   }

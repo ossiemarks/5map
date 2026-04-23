@@ -17,6 +17,7 @@ class SensorType(enum.Enum):
 
     RSSI = "rssi"
     CSI = "csi"
+    ROUTER_CSI = "router_csi"
 
 
 @dataclass(slots=True)

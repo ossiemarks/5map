@@ -1463,6 +1463,55 @@ var SignalProcessing = (function () {
   }
 
   // ─────────────────────────────────────────────────────────────
+  // 9. DEVICE TYPE CLASSIFIER (CLIENT-SIDE HEURISTIC)
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * Heuristic device-type classifier for 3D visualization.
+   * Supplements the backend Random Forest classifier when device_type is 'unknown'.
+   *
+   * Priority order:
+   *   1. Existing non-unknown device_type from RF classifier
+   *   2. OUI/vendor string matching
+   *   3. SSID pattern matching (AP indicators)
+   *   4. Randomized MAC with no SSID -> phone
+   *   5. 5 GHz band with strong signal -> laptop or ap
+   *
+   * @param {{ device_type: string, vendor: string|null, ssid: string|null,
+   *            is_randomized_mac: boolean, channel: number, bandwidth: string,
+   *            rssi_dbm: number }} device
+   * @returns {'phone'|'laptop'|'ap'|'iot'|'unknown'}
+   */
+  function classifyDevice(device) {
+    if (device.device_type && device.device_type !== 'unknown') {
+      return device.device_type;
+    }
+
+    var vendor = (device.vendor || '').toLowerCase();
+    var ssid   = (device.ssid   || '').toLowerCase();
+
+    // OUI/vendor matching
+    if (/apple|samsung|google|oneplus|xiaomi|oppo|vivo|huawei mobile/.test(vendor)) return 'phone';
+    if (/intel|dell|hp|hewlett|lenovo|acer|asus|toshiba/.test(vendor))              return 'laptop';
+    if (/cisco|tp-link|netgear|ubiquiti|aruba|ruckus|mikrotik|hak5/.test(vendor))  return 'ap';
+    if (/huawei/.test(vendor))                                                       return 'ap';
+    if (/espressif|arduino|raspberry|tuya|shelly|sonoff/.test(vendor))              return 'iot';
+
+    // SSID patterns that indicate an access point
+    if (ssid && /[-_](ext|guest|5g|2g|iot|mesh|backhaul)|orbi|deco|velop|eero|plume/.test(ssid)) return 'ap';
+
+    // Randomized MAC + no SSID = almost certainly a scanning phone
+    if (device.is_randomized_mac && !device.ssid) return 'phone';
+
+    // 5 GHz band with strong signal: a laptop or AP is more likely than a phone
+    var is5ghz = device.bandwidth === '5GHz' ||
+                 CHANNELS_5GHZ.indexOf(device.channel) !== -1;
+    if (is5ghz && device.rssi_dbm >= -65) return 'laptop';
+
+    return 'unknown';
+  }
+
+  // ─────────────────────────────────────────────────────────────
   // PUBLIC API
   // ─────────────────────────────────────────────────────────────
 
@@ -1494,6 +1543,9 @@ var SignalProcessing = (function () {
     drawCSIWaveform:           drawCSIWaveform,
     drawScanSweep:             drawScanSweep,
     renderRiskHeatmapToCanvas: renderRiskHeatmapToCanvas,
+
+    // Device classification
+    classifyDevice:            classifyDevice,
 
     // Utility
     rssiToPercent:             rssiToPercent,

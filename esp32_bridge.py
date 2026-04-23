@@ -93,6 +93,10 @@ class ESP32Bridge:
         self._ble_devices: dict = {}
         self._ble_lock = threading.Lock()
 
+        # Live WiFi device cache for dashboard (from ESP32 WiFi scan)
+        self._wifi_devices: dict = {}
+        self._wifi_lock = threading.Lock()
+
         # Dashboard data export path
         self._dashboard_data_path = config.get("dashboard_data_path", None)
 
@@ -162,6 +166,57 @@ class ESP32Bridge:
         if obs.raw_data:
             self.stats["csi_raw_count"] = self.stats.get("csi_raw_count", 0) + 1
 
+    def _parse_wifi_line(self, data: dict) -> None:
+        """Parse a WiFi scan JSON line from ESP32-S2."""
+        mac = data.get("mac", "")
+        if not mac:
+            return
+
+        now = datetime.now(timezone.utc).isoformat()
+        ssid = data.get("ssid", "-")
+        rssi = int(data.get("rssi", -100))
+        channel = int(data.get("ch", 0))
+        auth = data.get("auth", "unknown")
+        bw = data.get("bw", "2.4GHz")
+
+        # Determine device type
+        device_type = "ap"
+        is_randomized = len(mac) >= 2 and int(mac[1], 16) & 0x2 != 0
+
+        # Risk scoring
+        risk_score = 0.1
+        if ssid in ("free_wifi", "PasswordIsPassword"):
+            risk_score = 0.8  # Known Pineapple honeypots
+        elif is_randomized:
+            risk_score = 0.3
+        elif auth == "open":
+            risk_score = 0.5
+
+        with self._wifi_lock:
+            existing = self._wifi_devices.get(mac)
+            if existing:
+                existing["rssi_dbm"] = rssi
+                existing["last_seen"] = now
+                if ssid and ssid != "-":
+                    existing["ssid"] = ssid
+            else:
+                self._wifi_devices[mac] = {
+                    "mac_address": mac,
+                    "ssid": ssid,
+                    "rssi_dbm": rssi,
+                    "channel": channel,
+                    "bandwidth": bw,
+                    "device_type": device_type,
+                    "is_randomized_mac": is_randomized,
+                    "risk_score": risk_score,
+                    "vendor": "Unknown",
+                    "source": "esp32",
+                    "first_seen": now,
+                    "last_seen": now,
+                }
+
+        self.stats["wifi_count"] = self.stats.get("wifi_count", 0) + 1
+
     def _parse_heartbeat(self, data: dict) -> None:
         """Parse a heartbeat from ESP32."""
         self.stats["heartbeats"] += 1
@@ -196,8 +251,12 @@ class ESP32Bridge:
                             self._parse_ble_line(data)
                         elif msg_type == "csi":
                             self._parse_csi_line(data)
+                        elif msg_type == "wifi":
+                            self._parse_wifi_line(data)
                         elif msg_type == "hb":
                             self._parse_heartbeat(data)
+                        elif msg_type == "boot":
+                            logger.info("ESP32 booted: %s", data)
                         else:
                             logger.debug("Unknown message type: %s", msg_type)
 
@@ -265,6 +324,20 @@ class ESP32Bridge:
                     dashboard_data["bluetooth_devices"] = list(
                         self._ble_devices.values()
                     )
+
+                with self._wifi_lock:
+                    # Merge ESP32 WiFi devices into dashboard devices list
+                    existing_macs = {d["mac_address"] for d in dashboard_data.get("devices", [])}
+                    for dev in self._wifi_devices.values():
+                        if dev["mac_address"] not in existing_macs:
+                            dashboard_data.setdefault("devices", []).append(dev)
+                        else:
+                            # Update RSSI for existing devices
+                            for d in dashboard_data["devices"]:
+                                if d["mac_address"] == dev["mac_address"]:
+                                    d["rssi_dbm"] = dev["rssi_dbm"]
+                                    d["last_seen"] = dev["last_seen"]
+                                    break
 
                 with open(data_path, "w") as f:
                     json.dump(dashboard_data, f, indent=2)
