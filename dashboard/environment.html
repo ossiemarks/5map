@@ -337,6 +337,14 @@ a:hover{text-decoration:underline}
         <label><span class="swatch" style="background:var(--purple)"></span>Signal Rings</label>
         <div class="toggle-switch"><input type="checkbox" id="layer-signalrings"><span class="slider"></span></div>
       </div>
+      <div class="layer-toggle">
+        <label><span class="swatch" style="background:#ff6b9d"></span>Movement Trails</label>
+        <div class="toggle-switch"><input type="checkbox" id="layer-trails" checked><span class="slider"></span></div>
+      </div>
+      <div class="layer-toggle">
+        <label><span class="swatch" style="background:#00e5ff"></span>People (BLE)</label>
+        <div class="toggle-switch"><input type="checkbox" id="layer-people" checked><span class="slider"></span></div>
+      </div>
     </div>
 
     <div class="sidebar-section">
@@ -364,6 +372,14 @@ a:hover{text-decoration:underline}
           <div class="sensor-pos">x:2.5 y:4.5</div>
         </div>
         <span id="sensor-pine-status" style="font-size:.62rem;color:var(--dim)">--</span>
+      </div>
+      <div class="sensor-item">
+        <span class="sensor-dot" style="background:#00e5ff"></span>
+        <div class="sensor-info">
+          <div class="sensor-name">BLE (Laptop)</div>
+          <div class="sensor-pos">x:2.5 y:2.5</div>
+        </div>
+        <span id="sensor-ble-status" style="font-size:.62rem;color:var(--dim)">--</span>
       </div>
     </div>
 
@@ -420,6 +436,7 @@ a:hover{text-decoration:underline}
     <div class="bstat"><span class="dot" style="background:var(--warn)"></span> IoT: <strong id="bs-iot">0</strong></div>
     <div class="bstat"><span class="dot" style="background:var(--dim)"></span> Unknown: <strong id="bs-unknown">0</strong></div>
     <div class="bstat"><span class="dot" style="background:var(--danger)"></span> High Risk: <strong id="bs-highrisk">0</strong></div>
+    <div class="bstat"><span class="dot" style="background:#00e5ff"></span> People: <strong id="bs-people">0</strong></div>
   </div>
   <div class="bottom-time" id="last-update">Last update: --</div>
 </div>
@@ -440,6 +457,8 @@ a:hover{text-decoration:underline}
   ───────────────────────────────────────────── */
   var state = {
     devices: [],
+    bleDevices: [],
+    people: [],      /* Merged BLE+WiFi people detections */
     mapData: null,
     routerSensor: null,
     events: [],
@@ -449,7 +468,7 @@ a:hover{text-decoration:underline}
   var layers = {
     grid: true, walls: true, heatmap: true, devices: true,
     sensors: true, devlabels: false, ssidlabels: true,
-    riskhalos: true, signalrings: false
+    riskhalos: true, signalrings: false, trails: true, people: true
   };
 
   /* Sensor positions: Router left, ESP32 right, Pineapple back-center */
@@ -471,6 +490,11 @@ a:hover{text-decoration:underline}
   /* Computed device positions cache (MAC -> {x,y}) */
   var devicePositions = {};
 
+  /* Smooth position tracking: MAC -> {x, y, targetX, targetY, trail[]} */
+  var smoothPositions = {};
+  var LERP_SPEED = 0.12;  /* How fast devices move toward target (0-1) */
+  var TRAIL_MAX = 12;     /* Trail points per device */
+
   /* ─────────────────────────────────────────────
      Layer Toggle Binding
   ───────────────────────────────────────────── */
@@ -478,7 +502,8 @@ a:hover{text-decoration:underline}
     'layer-grid': 'grid', 'layer-walls': 'walls', 'layer-heatmap': 'heatmap',
     'layer-devices': 'devices', 'layer-sensors': 'sensors',
     'layer-devlabels': 'devlabels', 'layer-ssidlabels': 'ssidlabels',
-    'layer-riskhalos': 'riskhalos', 'layer-signalrings': 'signalrings'
+    'layer-riskhalos': 'riskhalos', 'layer-signalrings': 'signalrings',
+    'layer-trails': 'trails', 'layer-people': 'people'
   };
   Object.keys(layerMap).forEach(function (elId) {
     var el = $(elId);
@@ -709,14 +734,77 @@ a:hover{text-decoration:underline}
       for (var di = 0; di < devs.length; di++) {
         var dev = devs[di];
         var classifiedType = SignalProcessing.classifyDevice(dev);
-        var dist = Math.min(rssiToDistance(dev.rssi_dbm || -70), Math.max(ROOM_W, ROOM_D) * 0.7);
+        var mac = dev.mac_address || '';
 
-        /* MAC-seeded deterministic position */
-        var hash = 0, mac = dev.mac_address || '';
-        for (var ci = 0; ci < mac.length; ci++) hash = ((hash << 5) - hash + mac.charCodeAt(ci)) | 0;
-        var dAng = (Math.abs(hash) % 360) * Math.PI / 180;
-        var dx = Math.max(0.2, Math.min(ROOM_W - 0.2, ROOM_W / 2 + Math.cos(dAng) * dist * 0.45));
-        var dy = Math.max(0.2, Math.min(ROOM_D - 0.2, ROOM_D / 2 + Math.sin(dAng) * dist * 0.45));
+        /* ── Multi-sensor position estimation ── */
+        var rssiPine = dev.rssi_pineapple || (dev.source === 'pineapple-esp32' ? dev.rssi_dbm : null);
+        var rssiRouter = dev.rssi_router || (dev.source === 'router' ? dev.rssi_dbm : null);
+        var rssiMain = dev.rssi_dbm || -70;
+
+        /* Sensor positions in room coords */
+        var pineX = 2.5, pineY = 4.5;  /* Pineapple */
+        var routerX = 0.5, routerY = 2.5; /* Router */
+
+        var targetX, targetY;
+
+        if (rssiPine !== null && rssiRouter !== null) {
+          /* Two sensors: weighted position between them */
+          var distPine = Math.min(rssiToDistance(rssiPine), ROOM_W * 0.9);
+          var distRouter = Math.min(rssiToDistance(rssiRouter), ROOM_W * 0.9);
+          var totalDist = distPine + distRouter;
+          if (totalDist < 0.01) totalDist = 1;
+          /* Weight: closer to sensor with stronger signal (lower distance) */
+          var wPine = 1 - (distPine / totalDist);  /* Higher weight = closer to pineapple */
+          var wRouter = 1 - (distRouter / totalDist);
+          var wSum = wPine + wRouter;
+          wPine /= wSum; wRouter /= wSum;
+
+          targetX = pineX * wPine + routerX * wRouter;
+          targetY = pineY * wPine + routerY * wRouter;
+
+          /* Add perpendicular offset using MAC hash to spread overlapping devices */
+          var hash = 0;
+          for (var ci = 0; ci < mac.length; ci++) hash = ((hash << 5) - hash + mac.charCodeAt(ci)) | 0;
+          var perpOffset = ((hash % 200) - 100) / 100 * 1.2; /* -1.2 to +1.2m offset */
+          var dxSensor = pineX - routerX, dySensor = pineY - routerY;
+          var sensorDist = Math.sqrt(dxSensor * dxSensor + dySensor * dySensor) || 1;
+          var perpX = -dySensor / sensorDist, perpY = dxSensor / sensorDist;
+          targetX += perpX * perpOffset;
+          targetY += perpY * perpOffset;
+        } else {
+          /* Single sensor: position radially from that sensor */
+          var sensorX = rssiPine !== null ? pineX : (rssiRouter !== null ? routerX : ROOM_W / 2);
+          var sensorY = rssiPine !== null ? pineY : (rssiRouter !== null ? routerY : ROOM_D / 2);
+          var dist = Math.min(rssiToDistance(rssiMain), Math.max(ROOM_W, ROOM_D) * 0.6);
+
+          var hash = 0;
+          for (var ci = 0; ci < mac.length; ci++) hash = ((hash << 5) - hash + mac.charCodeAt(ci)) | 0;
+          var dAng = (Math.abs(hash) % 360) * Math.PI / 180;
+          targetX = sensorX + Math.cos(dAng) * dist * 0.5;
+          targetY = sensorY + Math.sin(dAng) * dist * 0.5;
+        }
+
+        /* Clamp to room */
+        targetX = Math.max(0.15, Math.min(ROOM_W - 0.15, targetX));
+        targetY = Math.max(0.15, Math.min(ROOM_D - 0.15, targetY));
+
+        /* Smooth position with lerp */
+        var sp = smoothPositions[mac];
+        var dx, dy;
+        if (!sp) {
+          smoothPositions[mac] = { x: targetX, y: targetY, targetX: targetX, targetY: targetY, trail: [] };
+          dx = targetX; dy = targetY;
+        } else {
+          sp.targetX = targetX;
+          sp.targetY = targetY;
+          sp.x += (sp.targetX - sp.x) * LERP_SPEED;
+          sp.y += (sp.targetY - sp.y) * LERP_SPEED;
+          dx = sp.x; dy = sp.y;
+          /* Record trail */
+          sp.trail.push({ x: dx, y: dy, t: Date.now() });
+          if (sp.trail.length > TRAIL_MAX) sp.trail.shift();
+        }
+
         var dp = P(dx, dy, 0);
 
         /* Store screen position for hit testing */
@@ -726,6 +814,33 @@ a:hover{text-decoration:underline}
         var riskRgb = risk >= 0.7 ? '255,71,87' : risk >= 0.3 ? '255,165,2' : '46,213,115';
         var riskColor = 'rgb(' + riskRgb + ')';
         var isSelected = (state.selectedMac === mac);
+
+        /* ── Movement trail ── */
+        var spTrail = smoothPositions[mac];
+        if (layers.trails && spTrail && spTrail.trail.length > 2) {
+          ctx.beginPath();
+          for (var ti = 0; ti < spTrail.trail.length; ti++) {
+            var tp = P(spTrail.trail[ti].x, spTrail.trail[ti].y, 0);
+            var alpha = (ti / spTrail.trail.length) * 0.35;
+            if (ti === 0) {
+              ctx.moveTo(tp.x, tp.y);
+            } else {
+              ctx.lineTo(tp.x, tp.y);
+            }
+          }
+          ctx.strokeStyle = 'rgba(' + riskRgb + ',0.25)';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          /* Trail dots */
+          for (var ti = 0; ti < spTrail.trail.length; ti++) {
+            var tp = P(spTrail.trail[ti].x, spTrail.trail[ti].y, 0);
+            var dotAlpha = (ti / spTrail.trail.length) * 0.4;
+            ctx.beginPath();
+            ctx.arc(tp.x, tp.y, 1.5, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(' + riskRgb + ',' + dotAlpha + ')';
+            ctx.fill();
+          }
+        }
 
         /* ── Risk halo ── */
         if (layers.riskhalos && risk >= 0.3) {
@@ -771,6 +886,126 @@ a:hover{text-decoration:underline}
           ctx.fillStyle = 'rgba(136,146,164,0.45)';
           ctx.textAlign = 'center';
           ctx.fillText(mac.slice(-8), dp.x, dp.y + iconSize + 9);
+        }
+      }
+    }
+
+    /* ── People (BLE-detected) ── */
+    if (layers.people && state.people.length > 0) {
+      for (var pi = 0; pi < state.people.length; pi++) {
+        var person = state.people[pi];
+        var pRssi = person.rssi;
+        var pDist = Math.min(rssiToDistance(pRssi), Math.max(ROOM_W, ROOM_D) * 0.7);
+
+        /* Position person using BLE RSSI relative to Pineapple sensor (primary BLE receiver = laptop) */
+        /* Laptop BLE adapter is at room center */
+        var bleX = ROOM_W / 2, bleY = ROOM_D / 2;
+
+        /* Use MAC hash for angular spread, RSSI for distance */
+        var pHash = 0, pMac = person.primary_mac || '';
+        for (var pci = 0; pci < pMac.length; pci++) pHash = ((pHash << 5) - pHash + pMac.charCodeAt(pci)) | 0;
+        var pAng = (Math.abs(pHash) % 360) * Math.PI / 180;
+
+        var pTargetX = bleX + Math.cos(pAng) * pDist * 0.45;
+        var pTargetY = bleY + Math.sin(pAng) * pDist * 0.45;
+        pTargetX = Math.max(0.3, Math.min(ROOM_W - 0.3, pTargetX));
+        pTargetY = Math.max(0.3, Math.min(ROOM_D - 0.3, pTargetY));
+
+        /* Smooth position */
+        var sp = smoothPeople[person.id];
+        var pX, pY;
+        if (!sp) {
+          smoothPeople[person.id] = { x: pTargetX, y: pTargetY, targetX: pTargetX, targetY: pTargetY, trail: [] };
+          pX = pTargetX; pY = pTargetY;
+        } else {
+          sp.targetX = pTargetX; sp.targetY = pTargetY;
+          sp.x += (sp.targetX - sp.x) * LERP_SPEED;
+          sp.y += (sp.targetY - sp.y) * LERP_SPEED;
+          pX = sp.x; pY = sp.y;
+          sp.trail.push({ x: pX, y: pY, t: Date.now() });
+          if (sp.trail.length > TRAIL_MAX * 2) sp.trail.shift();
+        }
+
+        var pp = P(pX, pY, 0);
+        var pPulse = 0.5 + 0.5 * Math.sin(t * 1.5 + pi * 2.3);
+
+        /* Movement trail */
+        if (layers.trails && sp && sp.trail.length > 2) {
+          ctx.beginPath();
+          for (var pti = 0; pti < sp.trail.length; pti++) {
+            var ptp = P(sp.trail[pti].x, sp.trail[pti].y, 0);
+            if (pti === 0) ctx.moveTo(ptp.x, ptp.y);
+            else ctx.lineTo(ptp.x, ptp.y);
+          }
+          ctx.strokeStyle = 'rgba(0,229,255,0.2)';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+
+        /* Proximity ring */
+        var ringSize = 20 + pPulse * 8;
+        var ringGrad = ctx.createRadialGradient(pp.x, pp.y, 0, pp.x, pp.y, ringSize);
+        ringGrad.addColorStop(0, 'rgba(0,229,255,0.15)');
+        ringGrad.addColorStop(0.6, 'rgba(0,229,255,0.05)');
+        ringGrad.addColorStop(1, 'rgba(0,229,255,0)');
+        ctx.beginPath();
+        ctx.arc(pp.x, pp.y, ringSize, 0, Math.PI * 2);
+        ctx.fillStyle = ringGrad;
+        ctx.fill();
+
+        /* Person icon — walking figure */
+        ctx.save();
+        ctx.translate(pp.x, pp.y);
+        var walkCycle = Math.sin(t * 3 + pi * 1.7) * 0.15;
+
+        /* Head */
+        ctx.beginPath();
+        ctx.arc(0, -12, 4, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0,229,255,' + (0.7 + pPulse * 0.3) + ')';
+        ctx.fill();
+
+        /* Body */
+        ctx.beginPath();
+        ctx.moveTo(0, -8);
+        ctx.lineTo(0, 2);
+        ctx.strokeStyle = 'rgba(0,229,255,' + (0.7 + pPulse * 0.3) + ')';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        /* Arms */
+        ctx.beginPath();
+        ctx.moveTo(-5, -5 + walkCycle * 8);
+        ctx.lineTo(0, -6);
+        ctx.lineTo(5, -5 - walkCycle * 8);
+        ctx.stroke();
+
+        /* Legs */
+        ctx.beginPath();
+        ctx.moveTo(-4, 8 - walkCycle * 6);
+        ctx.lineTo(0, 2);
+        ctx.lineTo(4, 8 + walkCycle * 6);
+        ctx.stroke();
+
+        ctx.restore();
+
+        /* Label */
+        ctx.font = '600 8px ' + monoFont;
+        ctx.fillStyle = 'rgba(0,229,255,0.8)';
+        ctx.textAlign = 'center';
+        var personLabel = person.name || (person.manufacturer + ' #' + (pi + 1));
+        if (personLabel.length > 14) personLabel = personLabel.slice(0, 13) + '..';
+        ctx.fillText(personLabel, pp.x, pp.y + 16);
+
+        /* RSSI badge */
+        ctx.font = '500 7px ' + monoFont;
+        ctx.fillStyle = 'rgba(0,229,255,0.45)';
+        ctx.fillText(pRssi + ' dBm  ~' + pDist.toFixed(1) + 'm', pp.x, pp.y + 24);
+
+        /* Device count badge */
+        if (person.devices.length > 1) {
+          ctx.font = '700 7px ' + monoFont;
+          ctx.fillStyle = 'rgba(0,229,255,0.6)';
+          ctx.fillText(person.devices.length + ' devices', pp.x, pp.y + 32);
         }
       }
     }
@@ -1021,33 +1256,120 @@ a:hover{text-decoration:underline}
     $('sensor-pine-status').textContent = hasPine ? 'DETECTED' : 'OFF';
     $('sensor-pine-status').style.color = hasPine ? 'var(--danger)' : 'var(--dim)';
 
-    $('hdr-sensors').textContent = '3';
+    var hasBle = state.bleDevices.length > 0;
+    $('sensor-ble-status').textContent = hasBle ? 'LIVE' : 'OFF';
+    $('sensor-ble-status').style.color = hasBle ? 'var(--success)' : 'var(--dim)';
+
+    $('hdr-sensors').textContent = '4';
   }
+
+  /* ─────────────────────────────────────────────
+     People Detection
+  ───────────────────────────────────────────── */
+  var PERSON_MANUFACTURERS = ['Apple', 'Samsung', 'Google', 'Xiaomi', 'Huawei', 'OnePlus', 'Oppo'];
+  var INFRA_KEYWORDS = ['refrigerator', 'tv', 'hub', 'bridge', 'gateway', 'plug', 'bulb', 'light', 'sensor', 'thermostat'];
+
+  function isPerson(bleDev) {
+    var name = (bleDev.device_name || '').toLowerCase();
+    var mfr = bleDev.manufacturer || '';
+    var rssi = bleDev.rssi_dbm || -100;
+
+    /* Too weak = too far to be in the room */
+    if (rssi < -85) return false;
+
+    /* Filter out infrastructure/IoT */
+    for (var i = 0; i < INFRA_KEYWORDS.length; i++) {
+      if (name.indexOf(INFRA_KEYWORDS[i]) >= 0) return false;
+    }
+
+    /* Known phone/wearable manufacturers with decent signal = person */
+    for (var i = 0; i < PERSON_MANUFACTURERS.length; i++) {
+      if (mfr.indexOf(PERSON_MANUFACTURERS[i]) >= 0) return true;
+    }
+
+    /* Connectable unnamed device with strong signal */
+    if (bleDev.is_connectable && rssi > -70 && !name) return true;
+
+    return false;
+  }
+
+  function buildPeopleList(bleDevices) {
+    /* Group nearby BLE devices into "people" — a person typically
+       has 1-3 BLE devices (phone + watch + earbuds) at similar RSSI */
+    var candidates = bleDevices.filter(isPerson);
+
+    /* Simple clustering: group by similar RSSI (within 15dBm) */
+    var people = [];
+    var used = {};
+
+    candidates.sort(function (a, b) { return (b.rssi_dbm || -100) - (a.rssi_dbm || -100); });
+
+    for (var i = 0; i < candidates.length; i++) {
+      var c = candidates[i];
+      if (used[c.mac_address]) continue;
+
+      var person = {
+        id: 'person_' + (people.length + 1),
+        primary_mac: c.mac_address,
+        devices: [c],
+        rssi: c.rssi_dbm || -100,
+        manufacturer: c.manufacturer || 'Unknown',
+        name: c.device_name || '',
+        last_seen: c.last_seen,
+      };
+      used[c.mac_address] = true;
+
+      /* Find companion devices (same person's other gadgets) */
+      for (var j = i + 1; j < candidates.length; j++) {
+        var d = candidates[j];
+        if (used[d.mac_address]) continue;
+        var rssiDiff = Math.abs((c.rssi_dbm || -100) - (d.rssi_dbm || -100));
+        if (rssiDiff < 15 && (c.manufacturer || '') === (d.manufacturer || '')) {
+          person.devices.push(d);
+          used[d.mac_address] = true;
+          if (d.device_name && !person.name) person.name = d.device_name;
+        }
+      }
+
+      person.rssi = Math.max.apply(null, person.devices.map(function (d) { return d.rssi_dbm || -100; }));
+      people.push(person);
+    }
+
+    return people;
+  }
+
+  /* Smooth people positions */
+  var smoothPeople = {};
 
   /* ─────────────────────────────────────────────
      Data Loading
   ───────────────────────────────────────────── */
   var DATA_URL = 'data.json';
-  var POLL_INTERVAL = 5000;
+  var BLE_URL = 'ble_data.json';
+  var POLL_INTERVAL = 3000;
 
   function loadData() {
-    fetch(DATA_URL, { cache: 'no-store' })
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        state.devices = data.devices || [];
-        state.mapData = data.map || null;
-        state.routerSensor = data.router_sensor || null;
-        state.events = data.events || [];
+    Promise.all([
+      fetch(DATA_URL, { cache: 'no-store' }).then(function (r) { return r.json(); }).catch(function () { return {}; }),
+      fetch(BLE_URL, { cache: 'no-store' }).then(function (r) { return r.json(); }).catch(function () { return {}; }),
+    ]).then(function (results) {
+      var wifiData = results[0];
+      var bleData = results[1];
 
-        updateBottomStats();
-        updateHeaderStatus();
-        renderDetailPanel();
+      state.devices = wifiData.devices || [];
+      state.mapData = wifiData.map || null;
+      state.routerSensor = wifiData.router_sensor || null;
+      state.events = wifiData.events || [];
+      state.bleDevices = bleData.bluetooth_devices || [];
+      state.people = buildPeopleList(state.bleDevices);
 
-        $('last-update').textContent = 'Last update: ' + new Date().toLocaleTimeString();
-      })
-      .catch(function (err) {
-        console.warn('5map: data load error', err);
-      });
+      updateBottomStats();
+      updateHeaderStatus();
+      renderDetailPanel();
+
+      $('bs-people').textContent = state.people.length;
+      $('last-update').textContent = 'Last update: ' + new Date().toLocaleTimeString();
+    });
   }
 
   /* ─────────────────────────────────────────────

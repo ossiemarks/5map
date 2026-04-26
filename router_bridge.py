@@ -91,6 +91,10 @@ class RouterBridge:
         # Dashboard export
         self._dashboard_data_path = config.get("dashboard_data_path", None)
 
+        # Live device cache for dashboard
+        self._devices: dict = {}
+        self._devices_lock = threading.Lock()
+
     def _poll_loop(self) -> None:
         """Poll the router for WiFi data."""
         reconnect_delay = 1
@@ -109,9 +113,35 @@ class RouterBridge:
 
             try:
                 observations = self.sensor.poll()
+                now = datetime.now(timezone.utc).isoformat()
                 for obs in observations:
                     self.aggregator.add(obs)
                     self.stats["observation_count"] += 1
+
+                    # Cache for dashboard
+                    with self._devices_lock:
+                        existing = self._devices.get(obs.mac)
+                        if existing:
+                            existing["rssi_dbm"] = obs.rssi_dbm
+                            existing["last_seen"] = now
+                            if obs.ssid:
+                                existing["ssid"] = obs.ssid
+                        else:
+                            self._devices[obs.mac] = {
+                                "mac_address": obs.mac,
+                                "ssid": obs.ssid or "-",
+                                "rssi_dbm": obs.rssi_dbm,
+                                "channel": obs.channel,
+                                "bandwidth": obs.bandwidth,
+                                "device_type": "ap",
+                                "is_randomized_mac": False,
+                                "risk_score": 0.1,
+                                "vendor": "Unknown",
+                                "source": "router",
+                                "signal_quality": obs.signal_quality,
+                                "first_seen": now,
+                                "last_seen": now,
+                            }
 
                 self.stats["poll_count"] += 1
                 time.sleep(WINDOW_SECONDS)
@@ -159,8 +189,23 @@ class RouterBridge:
                     "last_update": datetime.now(timezone.utc).isoformat(),
                 }
 
-                with open(data_path, "w") as f:
+                # Merge router-discovered devices into dashboard devices list
+                with self._devices_lock:
+                    existing_macs = {d["mac_address"] for d in dashboard_data.get("devices", [])}
+                    for dev in self._devices.values():
+                        if dev["mac_address"] not in existing_macs:
+                            dashboard_data.setdefault("devices", []).append(dev)
+                        else:
+                            for d in dashboard_data["devices"]:
+                                if d["mac_address"] == dev["mac_address"]:
+                                    d["rssi_dbm"] = dev["rssi_dbm"]
+                                    d["last_seen"] = dev["last_seen"]
+                                    break
+
+                tmp_path = data_path.with_suffix(".tmp")
+                with open(tmp_path, "w") as f:
                     json.dump(dashboard_data, f, indent=2)
+                tmp_path.rename(data_path)
 
             except Exception as e:
                 logger.debug("Dashboard export error: %s", e)

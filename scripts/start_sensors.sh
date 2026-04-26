@@ -37,9 +37,9 @@ if [ "$MODE_CHOICE" = "2" ]; then
     info "Field mode — using 4G dongle"
 else
     MODE="home"
-    WIFI_SSID="Os1"
+    WIFI_SSID="VodafoneD521AB"
     WIFI_PASS=""
-    info "Home mode — using local WiFi"
+    info "Home mode — using Vodafone WiFi"
 fi
 echo ""
 
