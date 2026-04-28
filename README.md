@@ -389,6 +389,7 @@ Real-time visual indicators including device radar, signal strength gauges, chan
 │   ├── visual-indicators.html     # 6-panel signal intelligence dashboard
 │   ├── signal-processing.js       # Signal analysis algorithm library + classifyDevice
 │   ├── environment.html           # Full-page 3D environment with toggleable data layers
+│   ├── detail-csi-mapping.html    # CSI environment mapping with walk-and-tag fingerprinting
 │   ├── data.json                  # Live capture data (auto-updated by bridges)
 │   ├── wifi_data.json             # ESP32 WiFi scan data (bridge output)
 │   ├── ble_data.json              # BLE scan data (scanner output)
@@ -563,7 +564,37 @@ Full-page isometric 3D room visualization for indoor positioning and movement tr
 - Click device for detail panel (MAC, SSID, RSSI, channel, vendor)
 - Loads `signal-processing.js` for `classifyDevice()` heuristic
 
-**Navigation:** All three dashboard pages linked in header nav bar.
+### CSI Environment Mapping (`dashboard/detail-csi-mapping.html`)
+
+Interactive CSI-based physical environment mapping page for walk-and-tag fingerprint collection, real-time subcarrier visualization, and motion detection.
+
+**Layout:**
+| Panel | Position | Description |
+|-------|----------|-------------|
+| Floor Plan | Left (wide) | Interactive grid canvas with pan/zoom, click-to-tag calibration points, zone definition via right-click, IDW heatmap overlay |
+| Subcarrier Waterfall | Right (top) | 60-row scrolling spectrogram of 64 subcarrier amplitudes, viridis colour ramp (purple→blue→cyan→green→yellow) |
+| Phase Response | Right (bottom) | Linear phase plot (-π to +π) across subcarriers with gridlines |
+| Motion Gauge | Bottom-left | Semi-circular arc gauge (0-100%), green→amber→red gradient |
+| Breathing Indicator | Bottom | Pulsing circle with BPM readout when periodic motion detected |
+| Stats & Controls | Bottom | Mode toggle, session management, grid scale, export JSON |
+
+**Three Modes:**
+- **Calibrate** — Click canvas to place numbered position markers; CSI amplitude/phase snapshot captured per position
+- **Monitor** — Real-time CSI visualization with motion detection, no position tagging
+- **Heatmap** — IDW-interpolated fingerprint map overlay from tagged positions
+
+**Features:**
+- Mock CSI data generator with Gaussian-envelope amplitude baseline, motion random walk, and breathing oscillation (~16 BPM)
+- Viridis waterfall spectrogram showing subcarrier amplitude changes over time
+- Zone definition via right-click rubber-band rectangles with custom labels
+- Position chips with click-to-delete in panel header
+- Export positions/zones as JSON
+- API integration with `/api/sessions` and `/api/positions` (graceful fallback to mock data)
+- 60fps rendering via `requestAnimationFrame`
+- HiDPI canvas rendering
+- Responsive layout (collapses to single column on <1100px)
+
+**Navigation:** All dashboard pages linked in header nav bar.
 
 ### Reading the Dashboards
 
@@ -1048,10 +1079,12 @@ CSI gives 3-5x better resolution (0.5-1.2m vs 2-5m) but requires original ESP32 
 - [x] **BLE scanner** — Laptop Bluetooth scanning with dashboard integration
 - [x] **Sensor startup script** — Auto-discover, validate, and start all sensors
 
+- [x] **CSI environment mapping dashboard** — Walk-and-tag fingerprint collection with subcarrier waterfall, phase plot, motion gauge, breathing detection, and IDW heatmap
+- [x] **Dual-band dongle support** — Realtek 8812AU config for single-dongle 2.4GHz + 5GHz channel hopping in monitor mode
+
 ### In Progress
 - [ ] **Dashboard trajectory rendering** — Spline paths on 3D isometric view showing device movement history
 - [ ] **Behavioral fingerprinting** — Track devices across MAC randomization using probe patterns and RSSI spatial signatures
-- [ ] **5GHz scanning** — MT7612U USB dongle for GL-MT300N (£13.90, The Pi Hut)
 
 ### Planned
 - [ ] **ESP32 CSI integration** — Flash original ESP32 with CSI firmware for sub-metre positioning

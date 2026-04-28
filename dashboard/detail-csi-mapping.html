@@ -1,0 +1,1546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>5map - CSI Environment Mapping</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0e17;--card:#131a2b;--border:#1e2d4a;
+  --cyan:#00d4ff;--danger:#ff4757;--warn:#ffa502;--success:#2ed573;
+  --purple:#a855f7;--blue:#3b82f6;
+  --text:#e8eaed;--muted:#8892a4;--dim:#4a5568;
+  --font-mono:'SF Mono','Fira Code','Cascadia Code',monospace;
+  --font-sans:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --header-h:56px;
+  --bottom-h:52px;
+  --controls-h:112px;
+}
+html{font-size:14px}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:var(--font-sans);
+  height:100vh;overflow:hidden;
+  display:flex;flex-direction:column;
+}
+a{color:var(--cyan);text-decoration:none}
+
+/* ── Header ── */
+.header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 24px;height:var(--header-h);
+  background:linear-gradient(180deg,#0f1520 0%,var(--bg) 100%);
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+  z-index:100;
+}
+.header-left{display:flex;align-items:center;gap:14px}
+.logo{
+  font-size:1.5rem;font-weight:800;letter-spacing:-.02em;
+  font-family:var(--font-mono);color:var(--cyan);
+  display:flex;align-items:center;gap:8px;
+}
+.logo svg{width:28px;height:28px;fill:var(--cyan)}
+.back-link{
+  font-size:.75rem;color:var(--muted);
+  padding:4px 10px;border-radius:6px;
+  border:1px solid transparent;transition:all .15s;
+  display:flex;align-items:center;gap:4px;
+}
+.back-link:hover{color:var(--cyan);background:rgba(0,212,255,.06);border-color:rgba(0,212,255,.15)}
+.page-title{font-size:.82rem;color:var(--muted);font-family:var(--font-mono)}
+.header-right{display:flex;align-items:center;gap:16px}
+.status-pill{
+  display:flex;align-items:center;gap:6px;
+  font-size:.72rem;color:var(--muted);
+  padding:4px 10px;border-radius:12px;
+  background:rgba(255,255,255,.04);
+}
+.status-dot{
+  width:8px;height:8px;border-radius:50%;
+  display:inline-block;flex-shrink:0;
+}
+.status-dot.live{background:var(--success);animation:pulse 2s ease-in-out infinite}
+.status-dot.dead{background:var(--danger)}
+.status-dot.warn{background:var(--warn)}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(46,213,115,.6)}50%{opacity:.7;box-shadow:0 0 0 6px rgba(46,213,115,0)}}
+.last-update{font-size:.72rem;color:var(--dim);font-family:var(--font-mono)}
+
+/* ── Main Work Area ── */
+.work-area{
+  display:grid;
+  grid-template-columns:2fr 1fr;
+  gap:10px;
+  padding:10px;
+  flex:1;
+  min-height:0;
+  overflow:hidden;
+}
+
+/* ── Panels ── */
+.panel{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:10px;overflow:hidden;
+  display:flex;flex-direction:column;
+  min-height:0;
+}
+.panel-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:9px 14px;border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.panel-title{
+  font-size:.78rem;font-weight:600;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--muted);
+  display:flex;align-items:center;gap:7px;
+}
+.panel-badge{
+  font-size:.68rem;font-weight:700;
+  padding:2px 7px;border-radius:10px;
+}
+.panel-body{flex:1;overflow:hidden;position:relative;min-height:0}
+
+/* ── Right Column: stacked panels ── */
+.right-col{
+  display:flex;flex-direction:column;
+  gap:10px;
+  min-height:0;
+  overflow:hidden;
+}
+.right-col .panel{flex:1;min-height:0}
+
+/* ── Floor Plan Canvas ── */
+#floorplan-canvas{
+  display:block;width:100%;height:100%;
+  background:#080c14;cursor:crosshair;
+}
+.floorplan-wrap{position:relative;width:100%;height:100%;overflow:hidden}
+.canvas-hint{
+  position:absolute;bottom:10px;left:50%;transform:translateX(-50%);
+  background:rgba(10,14,23,.88);border:1px solid var(--border);
+  border-radius:6px;padding:4px 10px;
+  font-size:.65rem;color:var(--dim);font-family:var(--font-mono);
+  pointer-events:none;white-space:nowrap;
+}
+.map-mode-overlay{
+  position:absolute;top:8px;left:8px;
+  background:rgba(10,14,23,.9);border:1px solid var(--border);
+  border-radius:8px;padding:8px 12px;
+  font-size:.68rem;color:var(--muted);
+  backdrop-filter:blur(8px);
+  pointer-events:none;
+  min-width:140px;
+}
+.map-mode-overlay .mode-label{
+  font-size:.6rem;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;
+}
+.map-mode-overlay .mode-val{
+  font-family:var(--font-mono);font-weight:700;font-size:.78rem;
+}
+
+/* ── CSI Subcarrier Waterfall ── */
+#waterfall-canvas{display:block;width:100%;height:100%;background:#080c14}
+
+/* ── Phase Plot ── */
+#phase-canvas{display:block;width:100%;height:100%;background:#080c14}
+
+/* ── Bottom row: gauges + controls ── */
+.bottom-row{
+  display:flex;gap:10px;
+  padding:0 10px 10px 10px;
+  flex-shrink:0;
+  height:var(--controls-h);
+}
+.bottom-left{
+  display:flex;gap:10px;
+  flex:1;min-width:0;
+}
+.gauge-panel{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:10px;overflow:hidden;
+  display:flex;flex-direction:column;
+  min-width:140px;flex-shrink:0;
+}
+.gauge-panel .panel-head{padding:6px 10px}
+.gauge-body{
+  flex:1;display:flex;align-items:center;justify-content:center;
+  padding:4px;overflow:hidden;position:relative;
+}
+#motion-gauge{display:block}
+.breathing-panel{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:10px;overflow:hidden;
+  display:flex;flex-direction:column;
+  min-width:120px;flex-shrink:0;
+}
+.breathing-panel .panel-head{padding:6px 10px}
+.breathing-body{
+  flex:1;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:4px;padding:4px;
+}
+.breath-circle{
+  width:36px;height:36px;border-radius:50%;
+  background:rgba(0,212,255,.12);border:2px solid rgba(0,212,255,.3);
+  position:relative;display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.breath-circle.detected{
+  animation:breathe 3s ease-in-out infinite;
+  border-color:var(--cyan);background:rgba(0,212,255,.2);
+}
+@keyframes breathe{
+  0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(0,212,255,.4)}
+  50%{transform:scale(1.18);box-shadow:0 0 0 8px rgba(0,212,255,0)}
+}
+.breath-circle svg{width:16px;height:16px;fill:var(--cyan)}
+.breath-status{font-size:.65rem;font-family:var(--font-mono);color:var(--muted)}
+.breath-bpm{font-size:.72rem;font-family:var(--font-mono);color:var(--dim)}
+
+/* ── Stats cards (bottom) ── */
+.stats-cards{
+  display:flex;gap:8px;
+  background:var(--card);border:1px solid var(--border);
+  border-radius:10px;padding:10px 14px;
+  flex:1;min-width:0;align-items:center;
+}
+.stat-card{
+  flex:1;min-width:0;
+  display:flex;flex-direction:column;gap:2px;
+  padding:4px 10px;
+  border-right:1px solid var(--border);
+}
+.stat-card:last-child{border-right:none}
+.stat-val{font-size:1.25rem;font-weight:800;font-family:var(--font-mono);line-height:1}
+.stat-label{font-size:.59rem;color:var(--dim);text-transform:uppercase;letter-spacing:.05em}
+
+/* ── Controls Panel ── */
+.controls-panel{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:10px;padding:10px 14px;
+  display:flex;align-items:center;gap:14px;
+  flex-wrap:wrap;
+  min-width:280px;flex-shrink:0;
+}
+.ctrl-group{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ctrl-label{font-size:.64rem;color:var(--dim);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+.mode-btn{
+  font-size:.68rem;padding:4px 10px;border-radius:6px;
+  border:1px solid var(--border);background:transparent;
+  color:var(--muted);cursor:pointer;transition:all .15s;
+  font-family:var(--font-sans);white-space:nowrap;
+}
+.mode-btn:hover{color:var(--text);border-color:var(--dim)}
+.mode-btn.active-calibrate{color:var(--cyan);border-color:rgba(0,212,255,.4);background:rgba(0,212,255,.08)}
+.mode-btn.active-monitor{color:var(--warn);border-color:rgba(255,165,2,.4);background:rgba(255,165,2,.08)}
+.mode-btn.active-heatmap{color:var(--purple);border-color:rgba(168,85,247,.4);background:rgba(168,85,247,.08)}
+select.ctrl-select{
+  padding:4px 8px;border-radius:6px;
+  border:1px solid var(--border);background:var(--bg);
+  color:var(--text);font-size:.7rem;cursor:pointer;
+  font-family:var(--font-sans);
+}
+select.ctrl-select:focus{outline:none;border-color:var(--cyan)}
+input.ctrl-num{
+  width:52px;padding:3px 6px;
+  background:var(--bg);border:1px solid var(--border);
+  border-radius:4px;color:var(--text);
+  font-family:var(--font-mono);font-size:.72rem;
+  text-align:center;
+}
+input.ctrl-num:focus{outline:none;border-color:var(--cyan)}
+.action-btn{
+  font-size:.68rem;padding:4px 10px;border-radius:6px;
+  border:1px solid var(--border);background:transparent;
+  color:var(--muted);cursor:pointer;transition:all .15s;
+  font-family:var(--font-sans);white-space:nowrap;
+}
+.action-btn:hover{color:var(--danger);border-color:rgba(255,71,87,.4);background:rgba(255,71,87,.06)}
+.export-btn{
+  font-size:.68rem;padding:4px 10px;border-radius:6px;
+  border:1px solid rgba(0,212,255,.25);background:rgba(0,212,255,.06);
+  color:var(--cyan);cursor:pointer;transition:all .15s;
+  font-family:var(--font-sans);white-space:nowrap;
+}
+.export-btn:hover{background:rgba(0,212,255,.12);border-color:rgba(0,212,255,.4)}
+.new-session-btn{
+  font-size:.68rem;padding:4px 10px;border-radius:6px;
+  border:1px solid rgba(46,213,115,.25);background:rgba(46,213,115,.06);
+  color:var(--success);cursor:pointer;transition:all .15s;
+  font-family:var(--font-sans);white-space:nowrap;
+}
+.new-session-btn:hover{background:rgba(46,213,115,.12);border-color:rgba(46,213,115,.4)}
+.ctrl-sep{width:1px;height:28px;background:var(--border);flex-shrink:0}
+
+/* ── Device selector dropdown ── */
+.device-select-wrap{display:flex;align-items:center;gap:6px}
+
+/* ── Position list (in floor plan panel head) ── */
+.pos-list-wrap{
+  display:flex;gap:6px;align-items:center;flex-wrap:wrap;
+  max-width:340px;overflow:hidden;
+}
+.pos-chip{
+  font-size:.6rem;font-family:var(--font-mono);
+  padding:2px 6px;border-radius:10px;
+  background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.25);
+  color:var(--cyan);cursor:pointer;display:flex;align-items:center;gap:3px;
+  white-space:nowrap;
+  transition:all .12s;
+}
+.pos-chip:hover{background:rgba(255,71,87,.1);border-color:rgba(255,71,87,.3);color:var(--danger)}
+.pos-chip .x-btn{font-size:.55rem;opacity:.6}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* ── Responsive ── */
+@media(max-width:1100px){
+  .work-area{grid-template-columns:1fr;grid-template-rows:55vh 1fr}
+  .bottom-row{height:auto;flex-wrap:wrap}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<header class="header">
+  <div class="header-left">
+    <div class="logo">
+      <svg viewBox="0 0 24 24"><path d="M1.29 7.35a15.56 15.56 0 0 1 21.42 0l.6.58-1.42 1.42-.6-.58a13.56 13.56 0 0 0-18.58 0l-.6.58L.69 7.93l.6-.58Zm4.24 4.24a10.44 10.44 0 0 1 12.94 0l.6.5-1.42 1.42-.52-.42a8.44 8.44 0 0 0-10.26 0l-.52.42-1.42-1.42.6-.5Zm4.24 4.24a5.32 5.32 0 0 1 4.46 0l.68.42-1.42 1.42-.38-.24a3.32 3.32 0 0 0-2.22 0l-.38.24-1.42-1.42.68-.42ZM12 18a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Z"/></svg>
+      5map
+    </div>
+    <a href="index.html" class="back-link">&#8592; Back</a>
+    <span class="page-title">CSI Environment Mapping</span>
+  </div>
+  <div class="header-right">
+    <div class="status-pill">
+      <span class="status-dot warn" id="conn-dot"></span>
+      <span id="conn-text" style="font-size:.72rem">MOCK DATA</span>
+    </div>
+    <span class="last-update" id="last-update">--:--:--</span>
+  </div>
+</header>
+
+<!-- ═══ MAIN WORK AREA ═══ -->
+<div class="work-area">
+
+  <!-- ── Left: Floor Plan ── -->
+  <div class="panel">
+    <div class="panel-head">
+      <span class="panel-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--cyan)" style="opacity:.8"><path d="M3 3h18v18H3V3zm2 2v14h14V5H5zm2 2h4v4H7V7zm0 6h4v4H7v-4zm6-6h4v4h-4V7zm0 6h4v4h-4v-4z"/></svg>
+        Floor Plan
+      </span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="pos-list-wrap" id="pos-chip-list"></div>
+        <span class="panel-badge" id="mode-badge" style="background:rgba(0,212,255,.12);color:var(--cyan)">CALIBRATE</span>
+      </div>
+    </div>
+    <div class="panel-body">
+      <div class="floorplan-wrap" id="floorplan-wrap">
+        <canvas id="floorplan-canvas"></canvas>
+        <div class="map-mode-overlay">
+          <div class="mode-label">Mode</div>
+          <div class="mode-val" id="mode-display" style="color:var(--cyan)">Calibrate</div>
+        </div>
+        <div class="canvas-hint" id="canvas-hint">Left-click: place marker &nbsp;|&nbsp; Right-click: start zone &nbsp;|&nbsp; Scroll: zoom &nbsp;|&nbsp; Drag: pan</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Right: CSI Visualizations ── -->
+  <div class="right-col">
+
+    <!-- Waterfall -->
+    <div class="panel" style="flex:1.4">
+      <div class="panel-head">
+        <span class="panel-title">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="var(--purple)" style="opacity:.8"><path d="M3 3h18v2H3V3zm0 4h18v2H3V7zm0 4h14v2H3v-2zm0 4h10v2H3v-2zm0 4h6v2H3v-2z"/></svg>
+          Subcarrier Amplitude Waterfall
+        </span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="device-select-wrap">
+            <span style="font-size:.62rem;color:var(--dim)">Device:</span>
+            <select class="ctrl-select" id="device-select" style="font-size:.62rem;padding:2px 6px">
+              <option value="mock-01">ESP32-S3 (mock-01)</option>
+              <option value="mock-02">ESP32-S2 (mock-02)</option>
+            </select>
+          </div>
+          <span class="panel-badge" style="background:rgba(168,85,247,.12);color:var(--purple)">64 sub-carriers</span>
+        </div>
+      </div>
+      <div class="panel-body">
+        <canvas id="waterfall-canvas"></canvas>
+      </div>
+    </div>
+
+    <!-- Phase Plot -->
+    <div class="panel" style="flex:1">
+      <div class="panel-head">
+        <span class="panel-title">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="var(--cyan)" style="opacity:.8"><path d="M3.5 18.5L9.5 12.5 13.5 16.5 22 6.92 20.59 5.51 13.5 13.5 9.5 9.5 2 17l1.5 1.5z"/></svg>
+          Phase Response
+        </span>
+        <span class="panel-badge" style="background:rgba(0,212,255,.1);color:var(--cyan)">-&#960; to +&#960;</span>
+      </div>
+      <div class="panel-body">
+        <canvas id="phase-canvas"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- ═══ BOTTOM ROW ═══ -->
+<div class="bottom-row">
+
+  <!-- Motion Gauge -->
+  <div class="gauge-panel">
+    <div class="panel-head">
+      <span class="panel-title" style="font-size:.64rem">Motion Score</span>
+    </div>
+    <div class="gauge-body">
+      <canvas id="motion-gauge" width="110" height="70"></canvas>
+    </div>
+  </div>
+
+  <!-- Breathing Indicator -->
+  <div class="breathing-panel">
+    <div class="panel-head">
+      <span class="panel-title" style="font-size:.64rem">Breathing</span>
+    </div>
+    <div class="breathing-body">
+      <div class="breath-circle" id="breath-circle">
+        <svg viewBox="0 0 24 24"><path d="M12 4c-4.4 0-8 3.6-8 8s3.6 8 8 8 8-3.6 8-8-3.6-8-8-8zm0 14c-3.3 0-6-2.7-6-6s2.7-6 6-6 6 2.7 6 6-2.7 6 6-6z"/><path d="M12 8v4l3 3-1.4 1.4L10 13V8h2z"/></svg>
+      </div>
+      <div class="breath-status" id="breath-status" style="color:var(--dim)">Not Detected</div>
+      <div class="breath-bpm" id="breath-bpm">-- BPM</div>
+    </div>
+  </div>
+
+  <!-- Stats Cards -->
+  <div class="stats-cards">
+    <div class="stat-card">
+      <div class="stat-val" style="color:var(--cyan)" id="stat-positions">0</div>
+      <div class="stat-label">Positions Tagged</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" style="color:var(--purple)" id="stat-zones">0</div>
+      <div class="stat-label">Zones Defined</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" id="stat-motion" style="color:var(--success)">0%</div>
+      <div class="stat-label">Avg Motion Score</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" style="color:var(--blue)" id="stat-channel">6</div>
+      <div class="stat-label">Active Channel</div>
+    </div>
+  </div>
+
+  <!-- Controls Panel -->
+  <div class="controls-panel">
+    <div class="ctrl-group">
+      <span class="ctrl-label">Session</span>
+      <select class="ctrl-select" id="session-select">
+        <option value="sess-1">Session 2026-04-28</option>
+        <option value="sess-2">Session 2026-04-27</option>
+      </select>
+      <button class="new-session-btn" id="new-session-btn">+ New</button>
+    </div>
+    <div class="ctrl-sep"></div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">Mode</span>
+      <button class="mode-btn active-calibrate" id="btn-calibrate" data-mode="calibrate">Calibrate</button>
+      <button class="mode-btn" id="btn-monitor" data-mode="monitor">Monitor</button>
+      <button class="mode-btn" id="btn-heatmap" data-mode="heatmap">Heatmap</button>
+    </div>
+    <div class="ctrl-sep"></div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">Grid</span>
+      <input class="ctrl-num" type="number" id="grid-scale" value="1.0" min="0.5" max="5" step="0.5">
+      <span style="font-size:.62rem;color:var(--dim)">m/cell</span>
+    </div>
+    <div class="ctrl-sep"></div>
+    <div class="ctrl-group">
+      <button class="action-btn" id="clear-btn">Clear All</button>
+      <button class="export-btn" id="export-btn">Export JSON</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function() {
+'use strict';
+
+/* ─────────────────────────────────────────────────────────────────
+   CONSTANTS & COLOR HELPERS
+───────────────────────────────────────────────────────────────── */
+var C = {
+  bg:'#0a0e17', card:'#131a2b', border:'#1e2d4a',
+  cyan:'#00d4ff', danger:'#ff4757', warn:'#ffa502', success:'#2ed573',
+  purple:'#a855f7', blue:'#3b82f6',
+  text:'#e8eaed', muted:'#8892a4', dim:'#4a5568'
+};
+
+function dpr() { return window.devicePixelRatio || 1; }
+
+function setupCanvas(canvas, w, h) {
+  var r = dpr();
+  canvas.width  = Math.round(w * r);
+  canvas.height = Math.round(h * r);
+  canvas.style.width  = w + 'px';
+  canvas.style.height = h + 'px';
+  var ctx = canvas.getContext('2d');
+  ctx.scale(r, r);
+  return ctx;
+}
+
+function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
+function lerp(a, b, t)    { return a + (b - a) * t; }
+
+/* Viridis-like colour ramp for waterfall: purple→blue→cyan→green→yellow */
+function viridis(t) {
+  t = clamp(t, 0, 1);
+  var stops = [
+    [68,  1,  84],
+    [59,  82, 139],
+    [33, 145, 140],
+    [94, 201,  98],
+    [253,231,  37]
+  ];
+  var seg  = (stops.length - 1) * t;
+  var i    = Math.min(Math.floor(seg), stops.length - 2);
+  var f    = seg - i;
+  var a    = stops[i];
+  var b    = stops[i + 1];
+  return [
+    Math.round(lerp(a[0], b[0], f)),
+    Math.round(lerp(a[1], b[1], f)),
+    Math.round(lerp(a[2], b[2], f))
+  ];
+}
+
+function motionColor(score) {
+  if (score < 0.3) return C.success;
+  if (score < 0.7) return C.warn;
+  return C.danger;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   MOCK CSI DATA GENERATOR
+───────────────────────────────────────────────────────────────── */
+var NUM_SUBCARRIERS = 64;
+
+var MockCSI = {
+  motionScore:    0.15,
+  motionTarget:   0.15,
+  breathPhase:    0,
+  breathDetected: false,
+  breathBPM:      0,
+  breathWalkTimer:0,
+  baseAmplitude:  null,
+  noisePhase:     0,
+
+  init: function() {
+    /* Pre-compute channel-shaped amplitude baseline:
+       Gaussian-ish envelope peaking at center, falling at edges */
+    this.baseAmplitude = new Float32Array(NUM_SUBCARRIERS);
+    var center = NUM_SUBCARRIERS / 2;
+    for (var i = 0; i < NUM_SUBCARRIERS; i++) {
+      var dist = (i - center) / center;
+      /* Raised cosine + slight ripple */
+      this.baseAmplitude[i] = 0.55 + 0.35 * Math.cos(dist * Math.PI) + 0.04 * Math.cos(dist * 8 * Math.PI);
+    }
+  },
+
+  tick: function(dt) {
+    /* Slow random walk for motion score */
+    this.motionTarget += (Math.random() - 0.5) * 0.08;
+    this.motionTarget  = clamp(this.motionTarget, 0, 1);
+    this.motionScore   = lerp(this.motionScore, this.motionTarget, 0.12);
+
+    /* Breathing oscillation: 14-18 BPM */
+    this.breathPhase  += (Math.PI * 2) * 0.27 * (dt / 1000);  /* ~16 BPM */
+    this.breathWalkTimer += dt;
+    if (this.breathWalkTimer > 4000) {
+      this.breathWalkTimer = 0;
+      this.breathDetected = this.motionScore < 0.45 && Math.random() > 0.35;
+      this.breathBPM = this.breathDetected ? Math.round(13 + Math.random() * 6) : 0;
+    }
+
+    this.noisePhase += 0.03;
+  },
+
+  generate: function() {
+    var amp   = new Float32Array(NUM_SUBCARRIERS);
+    var phase = new Float32Array(NUM_SUBCARRIERS);
+
+    /* Breathing modulates variance across subcarriers */
+    var breathMod = this.breathDetected ? 0.06 * Math.sin(this.breathPhase) : 0;
+
+    for (var i = 0; i < NUM_SUBCARRIERS; i++) {
+      /* Gaussian noise with motion-dependent variance */
+      var noiseScale = 0.04 + this.motionScore * 0.12;
+      var n = (Math.random() + Math.random() + Math.random() - 1.5) * noiseScale;
+
+      amp[i] = clamp(
+        this.baseAmplitude[i] + n + breathMod * Math.sin(i * 0.4),
+        0, 1
+      );
+
+      /* Phase: linear ramp across subcarriers + small jitter */
+      var phaseBase = ((i / NUM_SUBCARRIERS) * 2 - 1) * Math.PI;  /* -π..π */
+      var phaseNoise = (Math.random() - 0.5) * 0.5 + 0.08 * Math.sin(this.noisePhase + i * 0.2);
+      phase[i] = clamp(phaseBase + phaseNoise, -Math.PI, Math.PI);
+    }
+
+    return {
+      mac: 'AA:BB:CC:DD:EE:01',
+      rssi_dbm: -58 + Math.round((Math.random() - 0.5) * 6),
+      channel: 6,
+      bandwidth: 20,
+      num_subcarriers: NUM_SUBCARRIERS,
+      amplitude: amp,
+      phase: phase,
+      motion_score: this.motionScore,
+      breathing_indicator: this.breathDetected,
+      breath_bpm: this.breathBPM
+    };
+  }
+};
+
+/* ─────────────────────────────────────────────────────────────────
+   CSI MAPPER — main state + logic
+───────────────────────────────────────────────────────────────── */
+var CSIMapper = {
+  mode:         'calibrate',   /* calibrate | monitor | heatmap */
+  sessionId:    'sess-1',
+  gridScale:    1.0,           /* metres per cell */
+
+  positions:    [],            /* { id, x, y, label, worldX, worldY, snapshot } */
+  zones:        [],            /* { id, x1, y1, x2, y2, label, color } */
+  posCounter:   0,
+  zoneCounter:  0,
+
+  /* viewport */
+  panX: 0, panY: 0,
+  zoom: 1.0,
+  dragging: false,
+  dragStart: null,
+  panAtDrag: null,
+  zoneDrawing: false,
+  zoneStart: null,
+  zoneTmp: null,
+
+  /* live data */
+  currentFrame:    null,
+  motionHistory:   [],
+
+  /* waterfall: ring buffer of rows, each row = Uint8Array [r,g,b] * 64 */
+  WATERFALL_ROWS: 60,
+  waterfallBuf:  null,
+  waterfallHead: 0,
+  waterfallFull: false,
+
+  init: function() {
+    MockCSI.init();
+
+    this.waterfallBuf = [];
+    for (var i = 0; i < this.WATERFALL_ROWS; i++) {
+      this.waterfallBuf.push(new Uint8Array(NUM_SUBCARRIERS * 3));
+    }
+
+    this.bindEvents();
+    this.resizeAll();
+    this.startLoop();
+
+    window.addEventListener('resize', this.resizeAll.bind(this));
+    this.populateSessions();
+    this.syncModeUI();
+    this.syncStats();
+
+    /* Initial timestamp */
+    this.updateTimestamp();
+  },
+
+  /* ── API calls with mock fallback ── */
+  populateSessions: function() {
+    var sel = document.getElementById('session-select');
+    fetch('/api/sessions')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        sel.innerHTML = '';
+        data.forEach(function(s) {
+          var o = document.createElement('option');
+          o.value = s.id; o.textContent = s.label;
+          sel.appendChild(o);
+        });
+      })
+      .catch(function() { /* keep mock options already in HTML */ });
+  },
+
+  savePosition: function(pos) {
+    fetch('/api/positions', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        session_id: this.sessionId,
+        x: pos.worldX, y: pos.worldY,
+        label: pos.label,
+        csi_snapshot: pos.snapshot
+      })
+    }).catch(function() { /* offline: data stored in memory only */ });
+  },
+
+  /* ── Event binding ── */
+  bindEvents: function() {
+    var self = this;
+    var canvas = document.getElementById('floorplan-canvas');
+
+    /* Click: place position (calibrate) or nothing (monitor/heatmap) */
+    canvas.addEventListener('click', function(e) {
+      if (self.mode !== 'calibrate') return;
+      if (self.zoneDrawing) return;
+      var pt = self.screenToWorld(e.offsetX, e.offsetY);
+      self.addPosition(pt.x, pt.y, e.offsetX, e.offsetY);
+    });
+
+    /* Right-click: start/finish zone rectangle */
+    canvas.addEventListener('contextmenu', function(e) {
+      e.preventDefault();
+      if (!self.zoneDrawing) {
+        self.zoneDrawing = true;
+        self.zoneStart   = self.screenToWorld(e.offsetX, e.offsetY);
+        self.zoneStart.sx = e.offsetX; self.zoneStart.sy = e.offsetY;
+      } else {
+        var end = self.screenToWorld(e.offsetX, e.offsetY);
+        self.finaliseZone(self.zoneStart, end);
+        self.zoneDrawing = false;
+        self.zoneTmp = null;
+      }
+    });
+
+    /* Mouse move: zone rubber-band */
+    canvas.addEventListener('mousemove', function(e) {
+      if (self.dragging && self.dragStart) {
+        self.panX = self.panAtDrag.x + (e.clientX - self.dragStart.x);
+        self.panY = self.panAtDrag.y + (e.clientY - self.dragStart.y);
+        return;
+      }
+      if (self.zoneDrawing) {
+        self.zoneTmp = self.screenToWorld(e.offsetX, e.offsetY);
+      }
+    });
+
+    /* Middle-click / ctrl+click: pan */
+    canvas.addEventListener('mousedown', function(e) {
+      if (e.button === 1 || e.ctrlKey) {
+        self.dragging = true;
+        self.dragStart = {x: e.clientX, y: e.clientY};
+        self.panAtDrag = {x: self.panX, y: self.panY};
+        e.preventDefault();
+      }
+    });
+    window.addEventListener('mouseup', function() { self.dragging = false; });
+
+    /* Scroll: zoom */
+    canvas.addEventListener('wheel', function(e) {
+      e.preventDefault();
+      var factor = e.deltaY > 0 ? 0.9 : 1.1;
+      self.zoom = clamp(self.zoom * factor, 0.3, 6);
+    }, {passive: false});
+
+    /* Mode buttons */
+    document.querySelectorAll('[data-mode]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        self.setMode(btn.dataset.mode);
+      });
+    });
+
+    /* Grid scale */
+    document.getElementById('grid-scale').addEventListener('change', function() {
+      self.gridScale = parseFloat(this.value) || 1.0;
+    });
+
+    /* Session select */
+    document.getElementById('session-select').addEventListener('change', function() {
+      self.sessionId = this.value;
+    });
+
+    /* New session */
+    document.getElementById('new-session-btn').addEventListener('click', function() {
+      var label = 'Session ' + new Date().toLocaleDateString();
+      var id    = 'sess-' + Date.now();
+      var sel   = document.getElementById('session-select');
+      var o     = document.createElement('option');
+      o.value = id; o.textContent = label; o.selected = true;
+      sel.appendChild(o);
+      self.sessionId = id;
+      fetch('/api/sessions', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({label: label})
+      }).catch(function(){});
+    });
+
+    /* Clear all */
+    document.getElementById('clear-btn').addEventListener('click', function() {
+      if (window.confirm('Remove all positions and zones?')) {
+        self.positions  = [];
+        self.zones      = [];
+        self.posCounter = 0;
+        self.zoneCounter= 0;
+        self.syncStats();
+        self.syncChips();
+      }
+    });
+
+    /* Export */
+    document.getElementById('export-btn').addEventListener('click', function() {
+      var blob = new Blob([JSON.stringify({
+        session: self.sessionId,
+        positions: self.positions,
+        zones: self.zones,
+        exported: new Date().toISOString()
+      }, null, 2)], {type:'application/json'});
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = '5map-csi-' + self.sessionId + '.json';
+      a.click();
+    });
+  },
+
+  /* ── Mode management ── */
+  setMode: function(mode) {
+    this.mode = mode;
+    this.syncModeUI();
+  },
+
+  syncModeUI: function() {
+    var m = this.mode;
+    var MODES = ['calibrate','monitor','heatmap'];
+    var badgeEl  = document.getElementById('mode-badge');
+    var displayEl= document.getElementById('mode-display');
+    var hintEl   = document.getElementById('canvas-hint');
+
+    MODES.forEach(function(md) {
+      var btn = document.getElementById('btn-' + md);
+      btn.className = 'mode-btn' + (m === md ? ' active-' + md : '');
+    });
+
+    var labels = {calibrate:'Calibrate', monitor:'Monitor', heatmap:'Heatmap'};
+    var colors = {calibrate:'var(--cyan)', monitor:'var(--warn)', heatmap:'var(--purple)'};
+    var hints  = {
+      calibrate: 'Left-click: place marker \u2502 Right-click: start zone \u2502 Scroll: zoom \u2502 Drag: pan',
+      monitor:   'Real-time monitoring active \u2502 Scroll: zoom \u2502 Ctrl+Drag: pan',
+      heatmap:   'Fingerprint heatmap overlay \u2502 Scroll: zoom \u2502 Ctrl+Drag: pan'
+    };
+    var badgeBg = {
+      calibrate: 'rgba(0,212,255,.12)',
+      monitor:   'rgba(255,165,2,.12)',
+      heatmap:   'rgba(168,85,247,.12)'
+    };
+
+    badgeEl.style.background = badgeBg[m];
+    badgeEl.style.color      = colors[m];
+    badgeEl.textContent      = labels[m].toUpperCase();
+    displayEl.style.color    = colors[m];
+    displayEl.textContent    = labels[m];
+    hintEl.textContent       = hints[m];
+  },
+
+  /* ── Coordinate helpers ── */
+  screenToWorld: function(sx, sy) {
+    var canvas = document.getElementById('floorplan-canvas');
+    var cw = canvas.clientWidth, ch = canvas.clientHeight;
+    var cx = cw / 2 + this.panX;
+    var cy = ch / 2 + this.panY;
+    var cellPx = 60 * this.zoom;
+    return {
+      x: (sx - cx) / cellPx,
+      y: (sy - cy) / cellPx
+    };
+  },
+
+  worldToScreen: function(wx, wy) {
+    var canvas = document.getElementById('floorplan-canvas');
+    var cw = canvas.clientWidth, ch = canvas.clientHeight;
+    var cx = cw / 2 + this.panX;
+    var cy = ch / 2 + this.panY;
+    var cellPx = 60 * this.zoom;
+    return {
+      x: cx + wx * cellPx,
+      y: cy + wy * cellPx
+    };
+  },
+
+  /* ── Position management ── */
+  addPosition: function(wx, wy, sx, sy) {
+    this.posCounter++;
+    var id    = this.posCounter;
+    var label = 'P' + id;
+    var snap  = this.currentFrame ? {
+      amplitude:    Array.from(this.currentFrame.amplitude),
+      phase:        Array.from(this.currentFrame.phase),
+      motion_score: this.currentFrame.motion_score
+    } : null;
+
+    var pos = {
+      id: id, label: label,
+      worldX: Math.round(wx * 100) / 100,
+      worldY: Math.round(wy * 100) / 100,
+      sx: sx, sy: sy,
+      snapshot: snap
+    };
+    this.positions.push(pos);
+    this.savePosition(pos);
+    this.syncStats();
+    this.syncChips();
+  },
+
+  removePosition: function(id) {
+    this.positions = this.positions.filter(function(p){ return p.id !== id; });
+    this.syncStats();
+    this.syncChips();
+  },
+
+  syncChips: function() {
+    var self = this;
+    var list = document.getElementById('pos-chip-list');
+    list.innerHTML = '';
+    this.positions.forEach(function(p) {
+      var chip = document.createElement('span');
+      chip.className = 'pos-chip';
+      chip.innerHTML = p.label + ' <span class="x-btn">&#x2715;</span>';
+      chip.addEventListener('click', function() { self.removePosition(p.id); });
+      list.appendChild(chip);
+    });
+  },
+
+  /* ── Zone management ── */
+  finaliseZone: function(start, end) {
+    var ZONE_COLORS = [
+      'rgba(0,212,255,.18)',   /* cyan */
+      'rgba(168,85,247,.18)',  /* purple */
+      'rgba(46,213,115,.18)',  /* success */
+      'rgba(255,165,2,.18)',   /* warn */
+      'rgba(255,71,87,.18)'   /* danger */
+    ];
+    this.zoneCounter++;
+    var zc = ZONE_COLORS[(this.zoneCounter - 1) % ZONE_COLORS.length];
+    var label = window.prompt('Zone name:', 'Zone ' + this.zoneCounter) || ('Zone ' + this.zoneCounter);
+    this.zones.push({
+      id:    this.zoneCounter,
+      x1:    Math.min(start.x, end.x),
+      y1:    Math.min(start.y, end.y),
+      x2:    Math.max(start.x, end.x),
+      y2:    Math.max(start.y, end.y),
+      label: label,
+      color: zc
+    });
+    this.syncStats();
+  },
+
+  /* ── Stats ── */
+  syncStats: function() {
+    document.getElementById('stat-positions').textContent = this.positions.length;
+    document.getElementById('stat-zones').textContent     = this.zones.length;
+    if (this.currentFrame) {
+      var sc = Math.round(this.currentFrame.motion_score * 100);
+      var el = document.getElementById('stat-motion');
+      el.textContent = sc + '%';
+      el.style.color = motionColor(this.currentFrame.motion_score);
+      document.getElementById('stat-channel').textContent = this.currentFrame.channel;
+    }
+  },
+
+  updateTimestamp: function() {
+    var now = new Date();
+    var ts  = now.toLocaleTimeString('en-GB', {hour12: false});
+    document.getElementById('last-update').textContent = ts;
+  },
+
+  /* ── Resize handling ── */
+  resizeAll: function() {
+    this.resizeFloorPlan();
+    this.resizeWaterfall();
+    this.resizePhase();
+    this.drawFloorPlan();
+    this.drawWaterfall();
+    this.drawPhasePlot();
+    this.drawMotionGauge();
+  },
+
+  resizeFloorPlan: function() {
+    var wrap   = document.getElementById('floorplan-wrap');
+    var canvas = document.getElementById('floorplan-canvas');
+    var w = wrap.clientWidth, h = wrap.clientHeight;
+    if (w < 4 || h < 4) return;
+    var r = dpr();
+    canvas.width  = Math.round(w * r);
+    canvas.height = Math.round(h * r);
+    canvas.style.width  = w + 'px';
+    canvas.style.height = h + 'px';
+  },
+
+  resizeWaterfall: function() {
+    var panel  = document.getElementById('waterfall-canvas').parentElement;
+    var canvas = document.getElementById('waterfall-canvas');
+    var w = panel.clientWidth, h = panel.clientHeight;
+    if (w < 4 || h < 4) return;
+    var r = dpr();
+    canvas.width  = Math.round(w * r);
+    canvas.height = Math.round(h * r);
+    canvas.style.width  = w + 'px';
+    canvas.style.height = h + 'px';
+  },
+
+  resizePhase: function() {
+    var panel  = document.getElementById('phase-canvas').parentElement;
+    var canvas = document.getElementById('phase-canvas');
+    var w = panel.clientWidth, h = panel.clientHeight;
+    if (w < 4 || h < 4) return;
+    var r = dpr();
+    canvas.width  = Math.round(w * r);
+    canvas.height = Math.round(h * r);
+    canvas.style.width  = w + 'px';
+    canvas.style.height = h + 'px';
+  },
+
+  /* ── FLOOR PLAN DRAWING ── */
+  drawFloorPlan: function() {
+    var canvas = document.getElementById('floorplan-canvas');
+    var W = canvas.clientWidth, H = canvas.clientHeight;
+    if (W < 4 || H < 4) return;
+    var r   = dpr();
+    var ctx = canvas.getContext('2d');
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.scale(r, r);
+    ctx.clearRect(0, 0, W, H);
+
+    var cellPx = 60 * this.zoom;
+    var cx = W / 2 + this.panX;
+    var cy = H / 2 + this.panY;
+
+    /* Grid */
+    ctx.strokeStyle = 'rgba(30,45,74,.5)';
+    ctx.lineWidth   = 1;
+    ctx.setLineDash([]);
+
+    var startX = Math.floor((-cx / cellPx) - 1);
+    var endX   = Math.ceil(((W - cx) / cellPx) + 1);
+    var startY = Math.floor((-cy / cellPx) - 1);
+    var endY   = Math.ceil(((H - cy) / cellPx) + 1);
+
+    for (var gx = startX; gx <= endX; gx++) {
+      var sx = cx + gx * cellPx;
+      ctx.beginPath(); ctx.moveTo(sx, 0); ctx.lineTo(sx, H); ctx.stroke();
+    }
+    for (var gy = startY; gy <= endY; gy++) {
+      var sy = cy + gy * cellPx;
+      ctx.beginPath(); ctx.moveTo(0, sy); ctx.lineTo(W, sy); ctx.stroke();
+    }
+
+    /* Axis lines */
+    ctx.strokeStyle = 'rgba(0,212,255,.2)';
+    ctx.lineWidth   = 1.5;
+    ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, H); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(W, cy); ctx.stroke();
+
+    /* Grid labels (metres) */
+    ctx.fillStyle = C.dim;
+    ctx.font      = Math.max(8, Math.round(9 * this.zoom)) + 'px SF Mono,monospace';
+    ctx.textAlign = 'center';
+    for (var lx = startX; lx <= endX; lx++) {
+      if (lx === 0) continue;
+      var lsx = cx + lx * cellPx;
+      ctx.fillText((lx * this.gridScale).toFixed(0) + 'm', lsx, cy + 10);
+    }
+    ctx.textAlign = 'right';
+    for (var ly = startY; ly <= endY; ly++) {
+      if (ly === 0) continue;
+      var lsy = cy + ly * cellPx;
+      ctx.fillText((ly * this.gridScale).toFixed(0) + 'm', cx - 4, lsy + 4);
+    }
+
+    /* Heatmap overlay (calibrate positions → IDW interpolated colour) */
+    if ((this.mode === 'heatmap' || this.mode === 'calibrate') && this.positions.length > 1) {
+      this.drawHeatmapOverlay(ctx, W, H, cx, cy, cellPx);
+    }
+
+    /* Zone rectangles */
+    var self = this;
+    this.zones.forEach(function(z) {
+      var p1 = self.worldToScreen(z.x1, z.y1);
+      var p2 = self.worldToScreen(z.x2, z.y2);
+      ctx.fillStyle   = z.color;
+      ctx.strokeStyle = z.color.replace('.18)', '.7)');
+      ctx.lineWidth   = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y, 4);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = C.text;
+      ctx.font      = '500 ' + Math.max(9, Math.round(10 * self.zoom)) + 'px system-ui,sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(z.label, (p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
+    });
+
+    /* Zone being drawn (rubber-band) */
+    if (this.zoneDrawing && this.zoneTmp && this.zoneStart) {
+      var zs  = this.worldToScreen(this.zoneStart.x, this.zoneStart.y);
+      var ze  = this.worldToScreen(this.zoneTmp.x,   this.zoneTmp.y);
+      ctx.strokeStyle = C.cyan;
+      ctx.lineWidth   = 1.5;
+      ctx.setLineDash([5,3]);
+      ctx.strokeRect(zs.x, zs.y, ze.x - zs.x, ze.y - zs.y);
+      ctx.setLineDash([]);
+    }
+
+    /* Position markers */
+    this.positions.forEach(function(p, idx) {
+      var sp = self.worldToScreen(p.worldX, p.worldY);
+      var isLatest = idx === self.positions.length - 1;
+      var radius   = isLatest ? 10 : 8;
+
+      /* Pulse ring on latest */
+      if (isLatest) {
+        var now = Date.now();
+        var pulseT = ((now % 1600) / 1600);
+        var pulseR = radius + pulseT * 14;
+        var alpha  = 0.5 * (1 - pulseT);
+        ctx.beginPath();
+        ctx.arc(sp.x, sp.y, pulseR, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(0,212,255,' + alpha + ')';
+        ctx.lineWidth   = 1.5;
+        ctx.stroke();
+      }
+
+      ctx.beginPath();
+      ctx.arc(sp.x, sp.y, radius, 0, Math.PI * 2);
+      ctx.fillStyle   = isLatest ? C.cyan : 'rgba(0,212,255,.7)';
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth   = 1.5;
+      ctx.stroke();
+
+      ctx.fillStyle = C.bg;
+      ctx.font      = 'bold ' + (radius > 9 ? '9' : '8') + 'px SF Mono,monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(p.id, sp.x, sp.y);
+      ctx.textBaseline = 'alphabetic';
+
+      ctx.fillStyle = C.text;
+      ctx.font      = '500 9px system-ui,sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(p.label, sp.x, sp.y + radius + 11);
+    });
+  },
+
+  drawHeatmapOverlay: function(ctx, W, H, cx, cy, cellPx) {
+    /* Low-resolution IDW heatmap using off-screen canvas, then scale-up */
+    var RES   = 32;   /* low-res grid resolution */
+    var offW  = RES, offH = Math.round(RES * H / W) || RES;
+
+    var offCanvas = document.createElement('canvas');
+    offCanvas.width  = offW;
+    offCanvas.height = offH;
+    var offCtx = offCanvas.getContext('2d');
+    var imgData = offCtx.createImageData(offW, offH);
+    var data    = imgData.data;
+
+    var self = this;
+    for (var py = 0; py < offH; py++) {
+      for (var px = 0; px < offW; px++) {
+        /* screen pos of this pixel (low-res) */
+        var scrX = px / offW * W;
+        var scrY = py / offH * H;
+        /* world pos */
+        var wx = (scrX - cx) / cellPx;
+        var wy = (scrY - cy) / cellPx;
+
+        /* IDW: use motion_score from each position snapshot */
+        var sumW = 0, sumV = 0;
+        for (var pi = 0; pi < self.positions.length; pi++) {
+          var pos   = self.positions[pi];
+          var dx    = wx - pos.worldX;
+          var dy    = wy - pos.worldY;
+          var dist2 = dx*dx + dy*dy;
+          var w     = dist2 < 0.0001 ? 1000 : 1 / dist2;
+          var val   = pos.snapshot ? pos.snapshot.motion_score : 0.3;
+          sumW += w;
+          sumV += w * val;
+        }
+
+        var t    = sumW > 0 ? sumV / sumW : 0;
+        var rgb  = viridis(t * 0.8);
+        var idx  = (py * offW + px) * 4;
+        data[idx]     = rgb[0];
+        data[idx + 1] = rgb[1];
+        data[idx + 2] = rgb[2];
+        data[idx + 3] = 90;  /* semi-transparent */
+      }
+    }
+    offCtx.putImageData(imgData, 0, 0);
+
+    /* Draw scaled up on main canvas */
+    ctx.save();
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'medium';
+    ctx.drawImage(offCanvas, 0, 0, W, H);
+    ctx.restore();
+  },
+
+  /* ── WATERFALL DRAWING ── */
+  pushWaterfallRow: function(amplitude) {
+    var row = this.waterfallBuf[this.waterfallHead];
+    for (var i = 0; i < NUM_SUBCARRIERS; i++) {
+      var rgb = viridis(amplitude[i]);
+      row[i * 3]     = rgb[0];
+      row[i * 3 + 1] = rgb[1];
+      row[i * 3 + 2] = rgb[2];
+    }
+    this.waterfallHead = (this.waterfallHead + 1) % this.WATERFALL_ROWS;
+    if (!this.waterfallFull && this.waterfallHead === 0) this.waterfallFull = true;
+  },
+
+  drawWaterfall: function() {
+    var canvas = document.getElementById('waterfall-canvas');
+    var W = canvas.clientWidth, H = canvas.clientHeight;
+    if (W < 4 || H < 4) return;
+    var r   = dpr();
+    var ctx = canvas.getContext('2d');
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.scale(r, r);
+
+    var padL = 30, padR = 12, padT = 18, padB = 22;
+    var chartW = W - padL - padR;
+    var chartH = H - padT - padB;
+
+    ctx.fillStyle = '#080c14';
+    ctx.fillRect(0, 0, W, H);
+
+    var nRows = this.waterfallFull ? this.WATERFALL_ROWS : this.waterfallHead;
+    if (nRows === 0) {
+      ctx.fillStyle = C.dim;
+      ctx.font      = '11px system-ui,sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Waiting for CSI data...', W/2, H/2);
+      return;
+    }
+
+    var rowH  = chartH / this.WATERFALL_ROWS;
+    var colW  = chartW / NUM_SUBCARRIERS;
+
+    /* Draw rows newest at top */
+    for (var ri = 0; ri < nRows; ri++) {
+      var rowIdx  = (this.waterfallHead - 1 - ri + this.WATERFALL_ROWS) % this.WATERFALL_ROWS;
+      var row     = this.waterfallBuf[rowIdx];
+      var drawY   = padT + ri * rowH;
+
+      for (var ci = 0; ci < NUM_SUBCARRIERS; ci++) {
+        var drawX = padL + ci * colW;
+        ctx.fillStyle = 'rgb(' + row[ci*3] + ',' + row[ci*3+1] + ',' + row[ci*3+2] + ')';
+        ctx.fillRect(drawX, drawY, Math.ceil(colW) + 0.5, Math.ceil(rowH) + 0.5);
+      }
+    }
+
+    /* Border */
+    ctx.strokeStyle = C.border;
+    ctx.lineWidth   = 1;
+    ctx.strokeRect(padL, padT, chartW, chartH);
+
+    /* X axis: subcarrier index */
+    ctx.fillStyle = C.dim;
+    ctx.font      = '8px SF Mono,monospace';
+    ctx.textAlign = 'center';
+    var xTicks    = [0, 15, 31, 47, 63];
+    xTicks.forEach(function(sc) {
+      var x = padL + (sc / (NUM_SUBCARRIERS - 1)) * chartW;
+      ctx.fillText(sc, x, H - padB + 13);
+    });
+    ctx.fillStyle = C.muted;
+    ctx.font      = '9px system-ui,sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Subcarrier Index', W / 2, H - 3);
+
+    /* Y axis label */
+    ctx.save();
+    ctx.translate(10, H / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillStyle = C.muted;
+    ctx.font      = '9px system-ui,sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Time', 0, 0);
+    ctx.restore();
+
+    /* Colour legend bar */
+    var legendX = padL, legendY = padT - 12, legendW = chartW, legendH = 6;
+    var grad = ctx.createLinearGradient(legendX, 0, legendX + legendW, 0);
+    grad.addColorStop(0,    'rgb(68,1,84)');
+    grad.addColorStop(0.25, 'rgb(59,82,139)');
+    grad.addColorStop(0.5,  'rgb(33,145,140)');
+    grad.addColorStop(0.75, 'rgb(94,201,98)');
+    grad.addColorStop(1,    'rgb(253,231,37)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(legendX, legendY, legendW, legendH);
+    ctx.strokeStyle = C.border;
+    ctx.lineWidth   = 1;
+    ctx.strokeRect(legendX, legendY, legendW, legendH);
+    ctx.fillStyle   = C.dim;
+    ctx.font        = '7px SF Mono,monospace';
+    ctx.textAlign   = 'left';  ctx.fillText('Low', legendX, legendY - 1);
+    ctx.textAlign   = 'right'; ctx.fillText('High', legendX + legendW, legendY - 1);
+  },
+
+  /* ── PHASE PLOT ── */
+  drawPhasePlot: function() {
+    var canvas = document.getElementById('phase-canvas');
+    var W = canvas.clientWidth, H = canvas.clientHeight;
+    if (W < 4 || H < 4) return;
+    var r   = dpr();
+    var ctx = canvas.getContext('2d');
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.scale(r, r);
+
+    var padL = 32, padR = 10, padT = 12, padB = 22;
+    var chartW = W - padL - padR;
+    var chartH = H - padT - padB;
+
+    ctx.fillStyle = '#080c14';
+    ctx.fillRect(0, 0, W, H);
+
+    if (!this.currentFrame) {
+      ctx.fillStyle = C.dim;
+      ctx.font      = '11px system-ui,sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Waiting for CSI data...', W/2, H/2);
+      return;
+    }
+
+    var phase = this.currentFrame.phase;
+
+    /* Horizontal gridlines at -π, -π/2, 0, π/2, π */
+    var yLabels = [
+      {val: Math.PI,      label: '+\u03C0'},
+      {val: Math.PI/2,    label: '+\u03C0/2'},
+      {val: 0,            label: '0'},
+      {val: -Math.PI/2,   label: '-\u03C0/2'},
+      {val: -Math.PI,     label: '-\u03C0'}
+    ];
+    ctx.font      = '8px SF Mono,monospace';
+    ctx.textAlign = 'right';
+    yLabels.forEach(function(yl) {
+      var y = padT + (1 - (yl.val + Math.PI) / (2 * Math.PI)) * chartH;
+      ctx.fillStyle   = C.dim;
+      ctx.fillText(yl.label, padL - 4, y + 3);
+      ctx.strokeStyle = 'rgba(30,45,74,.4)';
+      ctx.lineWidth   = 1;
+      ctx.setLineDash([3,3]);
+      ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
+      ctx.setLineDash([]);
+    });
+
+    /* Zero line emphasis */
+    var zeroY = padT + (1 - (0 + Math.PI) / (2 * Math.PI)) * chartH;
+    ctx.strokeStyle = 'rgba(0,212,255,.2)';
+    ctx.lineWidth   = 1;
+    ctx.beginPath(); ctx.moveTo(padL, zeroY); ctx.lineTo(W - padR, zeroY); ctx.stroke();
+
+    /* Phase line */
+    ctx.beginPath();
+    for (var i = 0; i < NUM_SUBCARRIERS; i++) {
+      var x = padL + (i / (NUM_SUBCARRIERS - 1)) * chartW;
+      var y = padT + (1 - (phase[i] + Math.PI) / (2 * Math.PI)) * chartH;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = C.cyan;
+    ctx.lineWidth   = 1.5;
+    ctx.stroke();
+
+    /* Dots on a few subcarriers */
+    ctx.fillStyle = C.cyan;
+    [0, 15, 31, 47, 63].forEach(function(si) {
+      var x = padL + (si / (NUM_SUBCARRIERS - 1)) * chartW;
+      var y = padT + (1 - (phase[si] + Math.PI) / (2 * Math.PI)) * chartH;
+      ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI * 2); ctx.fill();
+    });
+
+    /* X axis label */
+    ctx.fillStyle   = C.muted;
+    ctx.font        = '9px system-ui,sans-serif';
+    ctx.textAlign   = 'center';
+    ctx.fillText('Subcarrier Index', W / 2, H - 4);
+
+    /* X ticks */
+    ctx.fillStyle = C.dim;
+    ctx.font      = '8px SF Mono,monospace';
+    [0, 15, 31, 47, 63].forEach(function(sc) {
+      var x = padL + (sc / (NUM_SUBCARRIERS - 1)) * chartW;
+      ctx.textAlign = 'center';
+      ctx.fillText(sc, x, padT + chartH + 13);
+    });
+
+    /* Border */
+    ctx.strokeStyle = C.border;
+    ctx.lineWidth   = 1;
+    ctx.strokeRect(padL, padT, chartW, chartH);
+  },
+
+  /* ── MOTION GAUGE ── */
+  drawMotionGauge: function() {
+    var canvas = document.getElementById('motion-gauge');
+    var score  = this.currentFrame ? this.currentFrame.motion_score : 0;
+    var W = 110, H = 70;
+    var r   = dpr();
+    canvas.width  = W * r;
+    canvas.height = H * r;
+    canvas.style.width  = W + 'px';
+    canvas.style.height = H + 'px';
+    var ctx = canvas.getContext('2d');
+    ctx.scale(r, r);
+
+    var cx     = W / 2;
+    var cy     = H - 8;
+    var radius = 46;
+    var startA = Math.PI;
+    var endA   = 2 * Math.PI;
+    var fillA  = startA + score * Math.PI;
+    var color  = motionColor(score);
+
+    /* Background arc */
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, startA, endA);
+    ctx.strokeStyle = 'rgba(30,45,74,.6)';
+    ctx.lineWidth   = 10;
+    ctx.lineCap     = 'round';
+    ctx.stroke();
+
+    /* Gradient fill arc */
+    if (score > 0.01) {
+      var grad = ctx.createLinearGradient(cx - radius, 0, cx + radius, 0);
+      grad.addColorStop(0,   '#2ed573');
+      grad.addColorStop(0.5, '#ffa502');
+      grad.addColorStop(1,   '#ff4757');
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, startA, fillA);
+      ctx.strokeStyle = color;
+      ctx.lineWidth   = 10;
+      ctx.lineCap     = 'round';
+      ctx.stroke();
+    }
+
+    /* Numeric value */
+    ctx.fillStyle = color;
+    ctx.font      = 'bold 18px SF Mono,monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(Math.round(score * 100) + '%', cx, cy - 10);
+
+    /* Tick marks: 0%, 50%, 100% */
+    var ticks = [0, 0.5, 1];
+    ticks.forEach(function(t) {
+      var a   = startA + t * Math.PI;
+      var x1  = cx + (radius - 7) * Math.cos(a);
+      var y1  = cy + (radius - 7) * Math.sin(a);
+      var x2  = cx + (radius + 4) * Math.cos(a);
+      var y2  = cy + (radius + 4) * Math.sin(a);
+      ctx.beginPath();
+      ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+      ctx.strokeStyle = C.dim;
+      ctx.lineWidth   = 1.5;
+      ctx.stroke();
+    });
+
+    /* Scale labels */
+    ctx.fillStyle = C.dim;
+    ctx.font      = '7px SF Mono,monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('0', cx - radius - 4, cy + 2);
+    ctx.fillText('100', cx + radius + 8, cy + 2);
+  },
+
+  /* ── BREATHING INDICATOR UPDATE ── */
+  updateBreathing: function(frame) {
+    var circle = document.getElementById('breath-circle');
+    var status = document.getElementById('breath-status');
+    var bpm    = document.getElementById('breath-bpm');
+
+    if (frame.breathing_indicator) {
+      circle.className = 'breath-circle detected';
+      status.style.color = C.cyan;
+      status.textContent = 'Detected';
+      bpm.textContent    = (frame.breath_bpm || '--') + ' BPM';
+      bpm.style.color    = C.muted;
+    } else {
+      circle.className   = 'breath-circle';
+      status.style.color = C.dim;
+      status.textContent = 'Not Detected';
+      bpm.textContent    = '-- BPM';
+      bpm.style.color    = C.dim;
+    }
+  },
+
+  /* ── MAIN ANIMATION LOOP ── */
+  startLoop: function() {
+    var self     = this;
+    var lastTime = performance.now();
+    var lastCSI  = 0;
+    var CSI_INTERVAL = 500;
+    var raf;
+
+    function loop(now) {
+      var dt = now - lastTime;
+      lastTime = now;
+
+      MockCSI.tick(dt);
+
+      /* Generate new CSI frame every 500ms */
+      if (now - lastCSI >= CSI_INTERVAL) {
+        lastCSI         = now;
+        var frame       = MockCSI.generate();
+        self.currentFrame = frame;
+        self.pushWaterfallRow(frame.amplitude);
+
+        self.updateBreathing(frame);
+        self.syncStats();
+        self.updateTimestamp();
+      }
+
+      /* Redraw */
+      self.drawFloorPlan();
+      self.drawWaterfall();
+      self.drawPhasePlot();
+      self.drawMotionGauge();
+
+      raf = requestAnimationFrame(loop);
+    }
+
+    raf = requestAnimationFrame(loop);
+    self._raf = raf;
+  }
+};
+
+/* ── Boot ── */
+window.addEventListener('load', function() {
+  CSIMapper.init();
+});
+
+/* Debounced resize */
+var _resizeTimer;
+window.addEventListener('resize', function() {
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(function() { CSIMapper.resizeAll(); }, 80);
+});
+
+})();
+</script>
+</body>
+</html>

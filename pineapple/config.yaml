@@ -1,23 +1,27 @@
 sensor:
-  id: "pineapple-mk7-001"
+  id: "realtek-8812au-001"
   type: "rssi"
 
 radios:
-  radio_5ghz:
-    interface: "wlan0"
+  radio_dualband:
+    interface: "wlx0013eff20502"
     band: "5GHz"
     channels:
-      # UNII-1
+      # 2.4 GHz (interleaved for balanced coverage)
+      - 1
+      - 6
+      - 11
+      # 5 GHz UNII-1
       - 36
       - 40
       - 44
       - 48
-      # UNII-2 (DFS)
+      # 5 GHz UNII-2 (DFS)
       - 52
       - 56
       - 60
       - 64
-      # UNII-2 Extended (DFS)
+      # 5 GHz UNII-2 Extended (DFS)
       - 100
       - 104
       - 108
@@ -30,17 +34,12 @@ radios:
       - 136
       - 140
       - 144
-      # UNII-3
+      # 5 GHz UNII-3
       - 149
       - 153
       - 157
       - 161
       - 165
-    mode: "monitor"
-  radio_2ghz:
-    interface: "wlan1"
-    band: "2.4GHz"
-    channels: [1, 6, 11]
     mode: "monitor"
 
 capture:
@@ -52,7 +51,7 @@ capture:
 transport:
   type: "mqtt"
   mqtt:
-    broker: "iot.voicechatbox.com"
+    broker: "iot.voicechatai.io"
     port: 8883
     topic: "5map/rssi/{sensor_id}"
     qos: 1
